@@ -1,8 +1,600 @@
 ﻿@{
     ViewData["Title"] = "Home Page";
 }
-
+<!--
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+</div>
+-->
+<!-- Login Form (Hidden by default) -->
+<div id="login-form" class="card shadow-sm mx-auto max-w-md mb-6" style="display: none;">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Admin Login</h5>
+    </div>
+    <div class="card-body">
+        <form id="auth-form">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" placeholder="Enter your username">
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" placeholder="Enter your password">
+            </div>
+            <div class="mb-3">
+                <label for="role" class="form-label">Role</label>
+                <select class="form-select" id="role">
+                    <option value="monitoringAdmin">Monitoring Admin</option>
+                    <option value="systemAdmin">System Admin</option>
+                </select>
+            </div>
+            <div class="text-small text-muted mb-3">
+                <p>For demo purposes:</p>
+                <p>- Any username/password combination will work</p>
+                <p>- Select your role to see different admin features</p>
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="button" id="cancel-login" class="btn btn-outline-secondary">Cancel</button>
+                <button type="submit" class="btn btn-primary">Login</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div id="main-content">
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="true">
+                <i class="bi bi-map me-2"></i> Dashboard
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="historical-tab" data-bs-toggle="tab" data-bs-target="#historical" type="button" role="tab" aria-controls="historical" aria-selected="false">
+                <i class="bi bi-bar-chart me-2"></i> Historical Data
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts" type="button" role="tab" aria-controls="alerts" aria-selected="false">
+                <i class="bi bi-exclamation-circle me-2"></i> Alerts
+            </button>
+        </li>
+        <li class="nav-item admin-only" role="presentation" style="display: none;">
+            <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab" aria-controls="admin" aria-selected="false">
+                <i class="bi bi-gear me-2"></i> Admin
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="mainTabsContent">
+        <!-- Dashboard Tab -->
+        <div class="tab-pane fade show active" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Air Quality Map</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="map" class="rounded-lg" style="height: 500px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Air Quality Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <div id="city-aqi" class="display-4 fw-bold mb-2" style="color: #4ade80;">0</div>
+                                <div id="aqi-label" class="fs-4 mb-1">Loading...</div>
+                                <div>
+                                    <span id="aqi-trend" class="badge bg-secondary">Stable</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <h6 class="text-uppercase text-muted fw-bold fs-sm">Major Pollutants</h6>
+
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-medium">PM2.5</span>
+                                        <span id="pm25-value">0 µg/m³</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div id="pm25-bar" class="progress-bar bg-primary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-medium">PM10</span>
+                                        <span id="pm10-value">0 µg/m³</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div id="pm10-bar" class="progress-bar bg-primary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-medium">Ozone (O₃)</span>
+                                        <span id="o3-value">0 ppb</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div id="o3-bar" class="progress-bar bg-primary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-medium">Nitrogen Dioxide (NO₂)</span>
+                                        <span id="no2-value">0 ppb</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div id="no2-bar" class="progress-bar bg-primary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-top">
+                                <h6 class="text-uppercase text-muted fw-bold fs-sm">Health Recommendations</h6>
+                                <p id="health-recommendation" class="mt-2">Loading recommendations...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Data Tab -->
+        <div class="tab-pane fade" id="historical" role="tabpanel" aria-labelledby="historical-tab">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                        <h5 class="card-title mb-3 mb-md-0">Historical Air Quality Data</h5>
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+                            <select id="sensor-select" class="form-select">
+                                <option value="all">All Sensors (Average)</option>
+                                <option value="1">Colombo Fort</option>
+                                <option value="2">Dehiwala</option>
+                                <option value="3">Mount Lavinia</option>
+                                <option value="4">Kolonnawa</option>
+                                <option value="5">Kotte</option>
+                            </select>
+                            <button id="export-data" class="btn btn-outline-primary">
+                                <i class="bi bi-download me-2"></i> Export Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-pills mb-3" id="historical-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="daily-tab" data-bs-toggle="pill" data-bs-target="#daily" type="button" role="tab" aria-controls="daily" aria-selected="true">Daily (24h)</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="weekly-tab" data-bs-toggle="pill" data-bs-target="#weekly" type="button" role="tab" aria-controls="weekly" aria-selected="false">Weekly</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="monthly-tab" data-bs-toggle="pill" data-bs-target="#monthly" type="button" role="tab" aria-controls="monthly" aria-selected="false">Monthly</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="historical-tabs-content">
+                        <div class="tab-pane fade show active" id="daily" role="tabpanel" aria-labelledby="daily-tab">
+                            <div class="chart-container" style="position: relative; height:400px;">
+                                <canvas id="daily-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="weekly" role="tabpanel" aria-labelledby="weekly-tab">
+                            <div class="chart-container" style="position: relative; height:400px;">
+                                <canvas id="weekly-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="monthly" role="tabpanel" aria-labelledby="monthly-tab">
+                            <div class="chart-container" style="position: relative; height:400px;">
+                                <canvas id="monthly-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Pollutant Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height:300px;">
+                        <canvas id="pollutant-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Tab -->
+        <div class="tab-pane fade" id="alerts" role="tabpanel" aria-labelledby="alerts-tab">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Air Quality Alerts</h5>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="notification-toggle" checked>
+                            <label class="form-check-label" for="notification-toggle">Notifications</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="alerts-container" class="space-y-4">
+                        <!-- Alerts will be dynamically added here -->
+                        <div class="text-center py-4 text-muted">
+                            <p>Loading alerts...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Alert Thresholds</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-medium">Moderate</span>
+                                    <span>AQI 51-100</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-warning" style="width: 30%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-medium">Unhealthy for Sensitive Groups</span>
+                                    <span>AQI 101-150</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-orange" style="width: 50%; background-color: #f97316;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-medium">Unhealthy</span>
+                                    <span>AQI 151-200</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-danger" style="width: 70%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-medium">Very Unhealthy</span>
+                                    <span>AQI 201-300</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-purple" style="width: 90%; background-color: #a855f7;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top">
+                        <p class="text-muted small">
+                            Alerts are triggered when AQI levels exceed these thresholds.
+                            Only administrators can modify these thresholds.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Tab (Hidden by default) -->
+        <div class="tab-pane fade" id="admin" role="tabpanel" aria-labelledby="admin-tab">
+            <ul class="nav nav-pills mb-3" id="admin-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="sensors-tab" data-bs-toggle="pill" data-bs-target="#sensors" type="button" role="tab" aria-controls="sensors" aria-selected="true">Sensor Management</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="simulation-tab" data-bs-toggle="pill" data-bs-target="#simulation" type="button" role="tab" aria-controls="simulation" aria-selected="false">Data Simulation</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="alert-config-tab" data-bs-toggle="pill" data-bs-target="#alert-config" type="button" role="tab" aria-controls="alert-config" aria-selected="false">Alert Configuration</button>
+                </li>
+                <li class="nav-item system-admin-only" role="presentation" style="display: none;">
+                    <button class="nav-link" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">User Management</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="admin-tabs-content">
+                <!-- Sensor Management Tab -->
+                <div class="tab-pane fade show active" id="sensors" role="tabpanel" aria-labelledby="sensors-tab">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Add New Sensor</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="sensor-name" class="form-label">Sensor Name</label>
+                                        <input type="text" class="form-control" id="sensor-name" placeholder="e.g., Colombo Central">
+                                    </div>
+
+                                    <div class="row g-3">
+                                        <div class="col-6">
+                                            <label for="latitude" class="form-label">Latitude</label>
+                                            <input type="number" class="form-control" id="latitude" step="0.0001" value="6.9271">
+                                        </div>
+                                        <div class="col-6">
+                                            <label for="longitude" class="form-label">Longitude</label>
+                                            <input type="number" class="form-control" id="longitude" step="0.0001" value="79.8612">
+                                        </div>
+                                    </div>
+
+                                    <button id="add-sensor-btn" class="btn btn-primary w-100 mt-3">
+                                        <i class="bi bi-plus-circle me-2"></i> Add Sensor
+                                    </button>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Select Location on Map</label>
+                                    <div id="sensor-map" class="border rounded" style="height: 300px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Manage Sensors</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Location</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sensors-table-body">
+                                        <!-- Sensors will be dynamically added here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Simulation Tab -->
+                <div class="tab-pane fade" id="simulation" role="tabpanel" aria-labelledby="simulation-tab">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Data Simulation Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <label for="frequency-slider" class="form-label">Update Frequency (minutes)</label>
+                                    <span id="frequency-value">10 min</span>
+                                </div>
+                                <input type="range" class="form-range" id="frequency-slider" min="1" max="30" step="1" value="10">
+                            </div>
+
+                            <div class="row g-4 pt-3 border-top">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="baseline-aqi" class="form-label">Baseline AQI</label>
+                                        <input type="number" class="form-control" id="baseline-aqi" value="50">
+                                        <div class="form-text">Base AQI value for simulation</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="variability" class="form-label">Variability (%)</label>
+                                        <input type="number" class="form-control" id="variability" value="30">
+                                        <div class="form-text">How much values can fluctuate</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Traffic Pattern</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="traffic-pattern" checked>
+                                            <label class="form-check-label" for="traffic-pattern">Enable rush hour simulation</label>
+                                        </div>
+                                        <div class="form-text">Simulates higher pollution during morning/evening rush hours</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Weather Effects</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="weather-effect" checked>
+                                            <label class="form-check-label" for="weather-effect">Enable weather impact</label>
+                                        </div>
+                                        <div class="form-text">Simulates how weather conditions affect air quality</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button id="save-simulation" class="btn btn-primary w-100 mt-4">Save Simulation Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert Configuration Tab -->
+                <div class="tab-pane fade" id="alert-config" role="tabpanel" aria-labelledby="alert-config-tab">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Alert Thresholds</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <label for="moderate-threshold" class="form-label">Moderate (Yellow)</label>
+                                    <span id="moderate-value">AQI 51+</span>
+                                </div>
+                                <input type="range" class="form-range" id="moderate-threshold" min="25" max="75" step="1" value="51">
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <label for="unhealthy-sensitive-threshold" class="form-label">Unhealthy for Sensitive Groups (Orange)</label>
+                                    <span id="unhealthy-sensitive-value">AQI 101+</span>
+                                </div>
+                                <input type="range" class="form-range" id="unhealthy-sensitive-threshold" min="76" max="125" step="1" value="101">
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <label for="unhealthy-threshold" class="form-label">Unhealthy (Red)</label>
+                                    <span id="unhealthy-value">AQI 151+</span>
+                                </div>
+                                <input type="range" class="form-range" id="unhealthy-threshold" min="126" max="175" step="1" value="151">
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <label for="very-unhealthy-threshold" class="form-label">Very Unhealthy (Purple)</label>
+                                    <span id="very-unhealthy-value">AQI 201+</span>
+                                </div>
+                                <input type="range" class="form-range" id="very-unhealthy-threshold" min="176" max="250" step="1" value="201">
+                            </div>
+
+                            <div class="pt-4 border-top">
+                                <h6 class="fw-bold">Notification Settings</h6>
+
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <label for="email-alerts" class="form-label mb-0">Email Alerts</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="email-alerts" checked>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">Send email notifications when thresholds are exceeded</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <label for="sms-alerts" class="form-label mb-0">SMS Alerts</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="sms-alerts">
+                                        </div>
+                                    </div>
+                                    <div class="form-text">Send SMS notifications for critical alerts only</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <label for="public-alerts" class="form-label mb-0">Public Alerts</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="public-alerts" checked>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">Show alerts to public users on the dashboard</div>
+                                </div>
+                            </div>
+
+                            <button id="save-alert-settings" class="btn btn-primary w-100 mt-4">Save Alert Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management Tab (System Admin Only) -->
+                <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">User Management</h5>
+                                <button id="add-user-btn" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-person-plus me-2"></i> Add User
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body">
+                                        <!-- Users will be dynamically added here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">System Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="data-retention" class="form-label">Data Retention (days)</label>
+                                        <input type="number" class="form-control" id="data-retention" value="90">
+                                        <div class="form-text">How long to keep historical AQI readings</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="backup-frequency" class="form-label">Database Backup Frequency</label>
+                                        <select class="form-select" id="backup-frequency">
+                                            <option value="hourly">Hourly</option>
+                                            <option value="daily" selected>Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <label for="maintenance-mode" class="form-label mb-0">Maintenance Mode</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="maintenance-mode">
+                                            </div>
+                                        </div>
+                                        <div class="form-text">Put the system in maintenance mode (public access disabled)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button id="save-system-settings" class="btn btn-primary w-100 mt-4">Save System Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
