@@ -1,30 +1,23 @@
 ﻿// Main JavaScript for Air Quality Monitoring Dashboard
 
 // Global variables
-let isLoggedIn = false
-let userRole = "public"
-let alerts = []
-let cityData = {}
-let aqiTrend = "stable"
+let isLoggedIn = false;
+let userRole = "public";
+let alerts = [];
+let cityData = {};
+let aqiTrend = "stable";
 let sensors = [
     { id: 1, name: "Colombo Fort", status: "active", lat: 6.9271, lng: 79.8612 },
     { id: 2, name: "Dehiwala", status: "active", lat: 6.8504, lng: 79.865 },
     { id: 3, name: "Mount Lavinia", status: "active", lat: 6.8295, lng: 79.8663 },
     { id: 4, name: "Kolonnawa", status: "inactive", lat: 6.935, lng: 79.8888 },
     { id: 5, name: "Kotte", status: "active", lat: 6.9031, lng: 79.9025 },
-]
+];
 let users = [
     { id: 1, name: "John Doe", email: "john@example.com", role: "monitoringAdmin" },
     { id: 2, name: "Jane Smith", email: "jane@example.com", role: "monitoringAdmin" },
     { id: 3, name: "Admin User", email: "admin@example.com", role: "systemAdmin" },
-]
-
-// Declare undeclared variables
-let initMap
-let initSensorMapPicker
-let initCharts
-let updateCharts
-let exportChartData
+];
 
 // Helper functions (AQI color, label, health recommendation, date formatting)
 function getAqiColor(aqi) {

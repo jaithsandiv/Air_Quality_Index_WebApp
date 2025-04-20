@@ -1,5 +1,5 @@
-﻿import { Chart } from "@/components/ui/chart"
-// Charts functionality for Air Quality Monitoring Dashboard
+﻿// Charts functionality for Air Quality Monitoring Dashboard
+// Chart.js is loaded via CDN in the layout file
 
 // Global variables
 let dailyChart

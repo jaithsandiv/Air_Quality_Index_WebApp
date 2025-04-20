@@ -1,7 +1,7 @@
 ﻿// Map functionality for Air Quality Monitoring Dashboard
 
-// Import Leaflet library
-import * as L from "leaflet"
+// Leaflet library is loaded via CDN in the layout file
+// No need to import it here as it's available globally
 
 // Define sensor locations
 const sensorLocations = [
