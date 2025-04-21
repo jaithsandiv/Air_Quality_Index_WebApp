@@ -254,18 +254,21 @@ function addEventListeners() {
 
 // Login
 function login(role) {
-    isLoggedIn = true
-    userRole = role
+    isLoggedIn = true;
+    userRole = role;
 
     // Update UI
-    updateAuthUI()
-    updateAdminVisibility()
+    updateAuthUI();
+    updateAdminVisibility();
 
-    // Show admin tab
-    const adminTab = document.getElementById("admin-tab")
+    // Show admin tab if the user is an admin
+    const adminTab = document.getElementById("admin-tab");
     if (adminTab) {
-        adminTab.style.display = "block"
+        adminTab.style.display = userRole === "systemAdmin" || userRole === "monitoringAdmin" ? "block" : "none";
     }
+
+    // Log for debugging
+    console.log(`Logged in as ${userRole}`);
 }
 
 // Logout
@@ -326,16 +329,22 @@ function updateAuthUI() {
 // Update admin visibility
 function updateAdminVisibility() {
     // Show/hide admin tab
-    const adminTab = document.getElementById("admin-tab")
+    const adminTab = document.getElementById("admin-tab");
     if (adminTab) {
-        adminTab.style.display = isLoggedIn ? "block" : "none"
+        adminTab.style.display = isLoggedIn && (userRole === "systemAdmin" || userRole === "monitoringAdmin") ? "block" : "none";
     }
 
-    // Show/hide system admin only elements
-    const systemAdminElements = document.querySelectorAll(".system-admin-only")
+    // Show/hide system admin-only elements
+    const systemAdminElements = document.querySelectorAll(".system-admin-only");
     systemAdminElements.forEach((el) => {
-        el.style.display = isLoggedIn && userRole === "systemAdmin" ? "block" : "none"
-    })
+        el.style.display = isLoggedIn && userRole === "systemAdmin" ? "block" : "none";
+    });
+
+    // Show/hide admin-only elements
+    const adminOnlyElements = document.querySelectorAll(".admin-only");
+    adminOnlyElements.forEach((el) => {
+        el.style.display = isLoggedIn && (userRole === "systemAdmin" || userRole === "monitoringAdmin") ? "block" : "none";
+    });
 }
 
 // Generate city-wide data
