@@ -7,15 +7,33 @@ namespace Air_Quality_Index_WebApp.Controllers;
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
+    private readonly Air_Quality_Index_WebApp.Data.AirQualityContext _context;
 
-    public HomeController(ILogger<HomeController> logger)
+    public HomeController(ILogger<HomeController> logger, Air_Quality_Index_WebApp.Data.AirQualityContext context)
     {
         _logger = logger;
+        _context = context;
     }
 
     public IActionResult Index()
     {
-        return View();
+        // Get all sensors and locations
+        var sensors = _context.Sensors.ToList();
+        var locations = _context.Locations.ToList();
+
+        // Get latest sensor data for each sensor
+        var latestSensorData = _context.SensorData
+            .GroupBy(sd => sd.SensorId)
+            .Select(g => g.OrderByDescending(sd => sd.Timestamp).FirstOrDefault())
+            .ToList();
+
+        var model = new DashboardViewModel
+        {
+            Sensors = sensors,
+            Locations = locations,
+            LatestSensorData = latestSensorData
+        };
+        return View(model);
     }
 
     public IActionResult Privacy()
