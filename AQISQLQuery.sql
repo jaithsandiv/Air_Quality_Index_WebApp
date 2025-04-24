@@ -1,11 +1,11 @@
-CREATE TABLE Locations (
+CREATE TABLE Location (
     LocationId INT IDENTITY PRIMARY KEY,
     Name NVARCHAR(100) NOT NULL,
     Latitude FLOAT NOT NULL,
     Longitude FLOAT NOT NULL
 );
 
-CREATE TABLE Sensors (
+CREATE TABLE Sensor (
     SensorId INT IDENTITY PRIMARY KEY,
     Name NVARCHAR(100) NOT NULL,
     LocationId INT FOREIGN KEY REFERENCES Locations(LocationId),
