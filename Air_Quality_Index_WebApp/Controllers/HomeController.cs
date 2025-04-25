@@ -27,7 +27,8 @@ public class HomeController : Controller
             .GroupBy(sd => sd.SensorId)
             .Select(g => g.OrderByDescending(sd => sd.Timestamp).FirstOrDefault())
             .Where(sd => sd != null)
-            .ToList()!;
+            .Cast<SensorData>() // Ensure non-nullable list
+            .ToList();
 
         var model = new DashboardViewModel
         {
@@ -54,7 +55,8 @@ public class HomeController : Controller
             .GroupBy(sd => sd.SensorId)
             .Select(g => g.OrderByDescending(sd => sd.Timestamp).FirstOrDefault())
             .Where(sd => sd != null)
-            .ToList()!;
+            .Cast<SensorData>() // Ensure non-nullable list
+            .ToList();
 
         var mapData = sensors.Select(sensor => {
             var location = locations.FirstOrDefault(l => l.LocationId == sensor.LocationId);

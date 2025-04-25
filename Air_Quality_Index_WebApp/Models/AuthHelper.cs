@@ -5,14 +5,30 @@ namespace Air_Quality_Index_WebApp.Models
 {
     public static class AuthHelper
     {
-        // Hash password using SHA256 (for demo; use a stronger method in production)
+        // Hashes a plain password using SHA256
         public static string HashPassword(string password)
         {
-            using (var sha = SHA256.Create())
+            if (string.IsNullOrEmpty(password))
+                return string.Empty;
+            using (var sha256 = SHA256.Create())
             {
                 var bytes = Encoding.UTF8.GetBytes(password);
-                var hash = sha.ComputeHash(bytes);
-                return BitConverter.ToString(hash).Replace("-", "").ToLower();
+                var hash = sha256.ComputeHash(bytes);
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        // Verifies a plain password against a SHA256 hash
+        public static bool VerifyPassword(string password, string passwordHash)
+        {
+            if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(passwordHash))
+                return false;
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(password);
+                var hash = sha256.ComputeHash(bytes);
+                var hashString = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                return hashString == passwordHash.ToLowerInvariant();
             }
         }
     }

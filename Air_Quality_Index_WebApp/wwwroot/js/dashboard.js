@@ -78,6 +78,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize UI
     initUI()
 
+    // Render login/logout button and attach event
+    updateAuthUI();
+
     // Initialize map if map element exists
     if (document.getElementById("map")) {
         initMap()
@@ -172,6 +175,11 @@ function addEventListeners() {
                     updateAdminVisibility()
                     document.getElementById("login-form").style.display = "none"
                     document.getElementById("main-content").style.display = "block"
+                    // Automatically switch to admin tab after successful login
+                    const adminTabBtn = document.getElementById("admin-tab-btn");
+                    if (adminTabBtn) {
+                        adminTabBtn.click();
+                    }
                 } else {
                     alert(result.message || "Login failed.")
                 }
@@ -716,4 +724,65 @@ function deleteUser(userId) {
         populateUsersTable()
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Open login modal on button click
+    const openLoginBtn = document.getElementById('open-login-btn');
+    if (openLoginBtn) {
+        openLoginBtn.addEventListener('click', function() {
+            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            loginModal.show();
+        });
+    }
+
+    // Handle login form submission
+    const loginForm = document.getElementById('auth-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+            if (!username || !password) {
+                errorDiv.textContent = 'Please enter both username and password.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            try {
+                const response = await fetch('/Account/Login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+                });
+                const result = await response.json();
+                if (result.success) {
+                    // Hide modal
+                    const loginModalEl = document.getElementById('loginModal');
+                    const loginModal = bootstrap.Modal.getInstance(loginModalEl);
+                    if (loginModal) loginModal.hide();
+                    // Show admin controls
+                    showAdminControls();
+                } else {
+                    errorDiv.textContent = result.error || 'Login failed.';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+
+    // Show admin controls if authenticated
+    function showAdminControls() {
+        // Show admin tab
+        const adminTab = document.getElementById('admin-tab');
+        if (adminTab) adminTab.style.display = 'block';
+        // Optionally, reload page or fetch user state
+    }
+
+    // Optionally, check authentication state on load and show admin controls if needed
+});
 
