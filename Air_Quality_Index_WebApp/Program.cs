@@ -10,6 +10,7 @@ builder.Services.AddDbContext<AirQualityContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpClient<Air_Quality_Index_WebApp.Services.WaqiService>();
 
 var app = builder.Build();
 

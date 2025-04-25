@@ -144,18 +144,40 @@ function addEventListeners() {
     // Auth form
     const authForm = document.getElementById("auth-form")
     if (authForm) {
-        authForm.addEventListener("submit", (e) => {
+        authForm.addEventListener("submit", async (e) => {
             e.preventDefault()
 
-            // Get selected role
-            const role = document.getElementById("role").value
+            // Get username and password
+            const username = document.getElementById("username").value.trim()
+            const password = document.getElementById("password").value
 
-            // Login
-            login(role)
+            // Simple validation
+            if (!username || !password) {
+                alert("Please enter both username and password.")
+                return
+            }
 
-            // Hide login form
-            document.getElementById("login-form").style.display = "none"
-            document.getElementById("main-content").style.display = "block"
+            // Send login request to backend
+            try {
+                const response = await fetch("/admin/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                })
+                const result = await response.json()
+                if (result.success) {
+                    isLoggedIn = true
+                    userRole = "systemAdmin"
+                    updateAuthUI()
+                    updateAdminVisibility()
+                    document.getElementById("login-form").style.display = "none"
+                    document.getElementById("main-content").style.display = "block"
+                } else {
+                    alert(result.message || "Login failed.")
+                }
+            } catch (err) {
+                alert("Error connecting to server.")
+            }
         })
     }
 

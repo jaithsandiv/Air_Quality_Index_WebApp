@@ -23,9 +23,11 @@ public class HomeController : Controller
 
         // Get latest sensor data for each sensor
         var latestSensorData = _context.SensorData
+            .ToList() // Materialize in memory to avoid EF Core translation issues
             .GroupBy(sd => sd.SensorId)
             .Select(g => g.OrderByDescending(sd => sd.Timestamp).FirstOrDefault())
-            .ToList();
+            .Where(sd => sd != null)
+            .ToList()!;
 
         var model = new DashboardViewModel
         {
@@ -48,9 +50,11 @@ public class HomeController : Controller
         var sensors = _context.Sensors.ToList();
         var locations = _context.Locations.ToList();
         var latestSensorData = _context.SensorData
+            .ToList() // Materialize in memory to avoid EF Core translation issues
             .GroupBy(sd => sd.SensorId)
             .Select(g => g.OrderByDescending(sd => sd.Timestamp).FirstOrDefault())
-            .ToList();
+            .Where(sd => sd != null)
+            .ToList()!;
 
         var mapData = sensors.Select(sensor => {
             var location = locations.FirstOrDefault(l => l.LocationId == sensor.LocationId);
