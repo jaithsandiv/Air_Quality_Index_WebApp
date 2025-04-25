@@ -1,0 +1,30 @@
+CREATE TABLE Location (
+    LocationId INT IDENTITY PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Latitude FLOAT NOT NULL,
+    Longitude FLOAT NOT NULL
+);
+
+CREATE TABLE Sensor (
+    SensorId INT IDENTITY PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    LocationId INT FOREIGN KEY REFERENCES Locations(LocationId),
+    Status NVARCHAR(20) NOT NULL
+);
+
+CREATE TABLE AdminUsers (
+    AdminUserId INT IDENTITY PRIMARY KEY,
+    Username NVARCHAR(50) NOT NULL,
+    PasswordHash NVARCHAR(256) NOT NULL
+);
+
+CREATE TABLE SensorData (
+    SensorDataId INT IDENTITY PRIMARY KEY,
+    SensorId INT FOREIGN KEY REFERENCES Sensors(SensorId),
+    Timestamp DATETIME NOT NULL,
+    AQI INT NOT NULL,
+    PM25 FLOAT,
+    PM10 FLOAT,
+    O3 FLOAT,
+    NO2 FLOAT
+);

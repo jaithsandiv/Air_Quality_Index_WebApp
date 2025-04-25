@@ -25,24 +25,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Authentication initialization
 function initAuth() {
-    const loginBtn = document.getElementById('login-btn');
-    
-    if (loginBtn) {
-        loginBtn.addEventListener('click', function() {
-            console.log('Login button clicked');
-            // For demo purposes - toggle between logged in/out state
-            if (isLoggedIn) {
-                isLoggedIn = false;
-                userRole = 'public';
-                loginBtn.innerHTML = '<i class="bi bi-person me-2"></i> Login';
-                alert('You have been logged out');
-            } else {
-                // In a real application, this would show a login form
-                isLoggedIn = true;
-                userRole = 'monitoringAdmin';
-                loginBtn.innerHTML = '<i class="bi bi-person-check me-2"></i> Logout';
-                alert('You have been logged in as Admin');
-            }
-        });
-    }
+    // The login button logic is now handled in dashboard.js
 }
