@@ -41,6 +41,36 @@ public class HomeController : Controller
         return View();
     }
 
+    [HttpGet]
+    [Route("api/sensors/mapdata")]
+    public IActionResult GetMapSensorData()
+    {
+        var sensors = _context.Sensors.ToList();
+        var locations = _context.Locations.ToList();
+        var latestSensorData = _context.SensorData
+            .GroupBy(sd => sd.SensorId)
+            .Select(g => g.OrderByDescending(sd => sd.Timestamp).FirstOrDefault())
+            .ToList();
+
+        var mapData = sensors.Select(sensor => {
+            var location = locations.FirstOrDefault(l => l.LocationId == sensor.LocationId);
+            var data = latestSensorData.FirstOrDefault(d => d.SensorId == sensor.SensorId);
+            return new {
+                id = sensor.SensorId,
+                name = sensor.Name,
+                lat = location?.Latitude,
+                lng = location?.Longitude,
+                aqi = data?.AQI ?? 0,
+                pm25 = data?.PM25 ?? 0,
+                pm10 = data?.PM10 ?? 0,
+                o3 = data?.O3 ?? 0,
+                no2 = data?.NO2 ?? 0,
+                lastUpdated = data?.Timestamp
+            };
+        });
+        return Json(mapData);
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
