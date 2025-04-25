@@ -29,7 +29,7 @@
 
 <!-- Main Content -->
 <div id="main-content">
-    <button id="fetch-waqi-btn" class="btn btn-success mb-3">Fetch WAQI Data</button>
+   <!-- <button id="fetch-waqi-btn" class="btn btn-success mb-3">Fetch WAQI Data</button>-->
     <div id="waqi-fetch-status" class="mb-3"></div>
     <!-- Navigation Tabs -->
     <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
@@ -61,15 +61,15 @@
         <div id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab" class="tab-pane fade show active">
             <div style="position: relative; width: 100%; min-height: 800px; background: #f8fafc;">
                 <!-- Air Quality Legend Tab -->
-                <div style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(255,255,255,0.95); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 10px 24px; min-width: 320px;">
-                    <strong>Air Quality Legend</strong>
-                    <div class="d-flex flex-row gap-3 mt-2" style="font-size: 0.95em;">
-                        <span><span style="display:inline-block;width:16px;height:16px;background:#4ade80;border-radius:3px;margin-right:4px;"></span>Good: 0-35</span>
-                        <span><span style="display:inline-block;width:16px;height:16px;background:#facc15;border-radius:3px;margin-right:4px;"></span>Moderate: 36-50</span>
-                        <span><span style="display:inline-block;width:16px;height:16px;background:#f97316;border-radius:3px;margin-right:4px;"></span>Unhealthy for Sensitive: 51-100</span>
-                        <span><span style="display:inline-block;width:16px;height:16px;background:#ef4444;border-radius:3px;margin-right:4px;"></span>Unhealthy: 101-150</span>
-                        <span><span style="display:inline-block;width:16px;height:16px;background:#a855f7;border-radius:3px;margin-right:4px;"></span>Very Unhealthy: 151-200</span>
-                        <span><span style="display:inline-block;width:16px;height:16px;background:#6b7280;border-radius:3px;margin-right:4px;"></span>Hazardous: 201+</span>
+                <div style="position: absolute; top: 40px; left: 30px; z-index: 1000; background: rgba(255,255,255,0.95); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 8px 12px; min-width: 140px; max-width: 180px; font-size: 0.85em;">
+                    <strong style="font-size: 1em;">Air Quality Legend</strong>
+                    <div class="d-flex flex-column gap-2 mt-2">
+                        <span><span style="display:inline-block;width:14px;height:14px;background:#4ade80;border-radius:3px;margin-right:6px;"></span>Good: 0-35</span>
+                        <span><span style="display:inline-block;width:14px;height:14px;background:#facc15;border-radius:3px;margin-right:6px;"></span>Moderate: 36-50</span>
+                        <span><span style="display:inline-block;width:14px;height:14px;background:#f97316;border-radius:3px;margin-right:6px;"></span>Unhealthy for Sensitive: 51-100</span>
+                        <span><span style="display:inline-block;width:14px;height:14px;background:#ef4444;border-radius:3px;margin-right:6px;"></span>Unhealthy: 101-150</span>
+                        <span><span style="display:inline-block;width:14px;height:14px;background:#a855f7;border-radius:3px;margin-right:6px;"></span>Very Unhealthy: 151-200</span>
+                        <span><span style="display:inline-block;width:14px;height:14px;background:#6b7280;border-radius:3px;margin-right:6px;"></span>Hazardous: 201+</span>
                     </div>
                 </div>
                 <div id="map" style="width: 100%; height: 800px; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);"></div>
