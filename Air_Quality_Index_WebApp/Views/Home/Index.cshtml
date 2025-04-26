@@ -546,8 +546,26 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/map.js"></script>
     <script src="~/js/dashboard.js"></script>
     <script>
-        // Remove demo login logic, rely on dashboard.js for login
+        // Re-initialize the sensor map picker when the Sensor Management tab is shown
+        document.addEventListener('DOMContentLoaded', function() {
+            var sensorsTab = document.getElementById('sensors-tab');
+            if (sensorsTab) {
+                sensorsTab.addEventListener('shown.bs.tab', function (e) {
+                    // Remove any existing map instance to avoid Leaflet errors
+                    if (window.sensorMap && window.sensorMap.remove) {
+                        window.sensorMap.remove();
+                        window.sensorMap = null;
+                    }
+                    setTimeout(function() {
+                        if (document.getElementById('sensor-map')) {
+                            initSensorMapPicker();
+                        }
+                    }, 100); // Delay to ensure tab is visible
+                });
+            }
+        });
     </script>
 }
