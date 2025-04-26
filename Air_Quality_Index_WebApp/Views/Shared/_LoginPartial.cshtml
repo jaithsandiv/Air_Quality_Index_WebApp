@@ -1,18 +1,27 @@
 @* Partial view for admin login form *@
-<form id="auth-form">
+<div id="login-section" style="display: block;">
+    <form id="auth-form">
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username">
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password">
+        </div>
+        <div class="text-small text-muted mb-3">
+            <p>Only valid admin credentials can log in.</p>
+        </div>
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary">Login</button>
+        </div>
+        <div id="login-error" class="text-danger mt-2" style="display:none;"></div>
+    </form>
+</div>
+<div id="logout-section" style="display: none;">
     <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username">
+        <span class="me-2">Logged in as <strong>Admin</strong></span>
+        <button id="logout-btn" class="btn btn-outline-danger btn-sm">Logout</button>
     </div>
-    <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password">
-    </div>
-    <div class="text-small text-muted mb-3">
-        <p>Only valid admin credentials can log in.</p>
-    </div>
-    <div class="d-flex justify-content-between">
-        <button type="submit" class="btn btn-primary">Login</button>
-    </div>
-    <div id="login-error" class="text-danger mt-2" style="display:none;"></div>
-</form>
+</div>
+<script src="~/js/login-logout.js"></script>

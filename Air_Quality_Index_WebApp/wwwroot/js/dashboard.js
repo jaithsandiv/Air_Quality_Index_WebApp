@@ -303,26 +303,28 @@ function login(role) {
 
 // Logout
 function logout() {
-    isLoggedIn = false
-    userRole = "public"
-
-    // Update UI
-    updateAuthUI()
-    updateAdminVisibility()
-
-    // Hide admin tab
-    const adminTab = document.getElementById("admin-tab")
-    if (adminTab) {
-        adminTab.style.display = "none"
-    }
-
-    // Switch to dashboard tab if on admin tab
-    if (document.querySelector("#admin.active")) {
-        const dashboardTab = document.getElementById("dashboard-tab")
-        if (dashboardTab) {
-            dashboardTab.click()
+    // Call backend to sign out
+    fetch('/Account/Logout', {
+        method: 'POST',
+        credentials: 'same-origin'
+    }).then(() => {
+        isLoggedIn = false;
+        userRole = "public";
+        updateAuthUI();
+        updateAdminVisibility();
+        // Hide admin tab
+        const adminTab = document.getElementById("admin-tab");
+        if (adminTab) {
+            adminTab.style.display = "none";
         }
-    }
+        // Switch to dashboard tab if on admin tab
+        if (document.querySelector("#admin.active")) {
+            const dashboardTab = document.getElementById("dashboard-tab");
+            if (dashboardTab) {
+                dashboardTab.click();
+            }
+        }
+    });
 }
 
 // Update auth UI
