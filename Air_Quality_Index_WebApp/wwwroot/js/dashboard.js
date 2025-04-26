@@ -6,13 +6,7 @@ let userRole = "public";
 let alerts = [];
 let cityData = {};
 let aqiTrend = "stable";
-let sensors = [
-    { id: 1, name: "Colombo Fort", status: "active", lat: 6.9271, lng: 79.8612 },
-    { id: 2, name: "Dehiwala", status: "active", lat: 6.8504, lng: 79.865 },
-    { id: 3, name: "Mount Lavinia", status: "active", lat: 6.8295, lng: 79.8663 },
-    { id: 4, name: "Kolonnawa", status: "inactive", lat: 6.935, lng: 79.8888 },
-    { id: 5, name: "Kotte", status: "active", lat: 6.9031, lng: 79.9025 },
-];
+let sensors = [];
 let users = [
     { id: 1, name: "John Doe", email: "john@example.com", role: "monitoringAdmin" },
     { id: 2, name: "Jane Smith", email: "jane@example.com", role: "monitoringAdmin" },
@@ -109,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(generateRandomAlert, 30000)
 
     // Populate sensors table
-    populateSensorsTable()
+    fetchSensorsAndUpdateTable()
 
     // Populate users table
     populateUsersTable()
@@ -569,25 +563,33 @@ function updateAlertsUI() {
     }
 }
 
-// Populate sensors table
+// Fetch sensors from backend and update table
+async function fetchSensorsAndUpdateTable() {
+    try {
+        const res = await fetch('/admin/sensors');
+        sensors = await res.json();
+        populateSensorsTable();
+    } catch (err) {
+        alert('Failed to load sensors from server.');
+    }
+}
+
 function populateSensorsTable() {
-    const tableBody = document.getElementById("sensors-table-body")
-
+    const tableBody = document.getElementById("sensors-table-body");
     if (tableBody) {
-        let html = ""
-
+        let html = "";
         sensors.forEach((sensor) => {
             html += `
         <tr>
           <td>${sensor.id}</td>
           <td>${sensor.name}</td>
-          <td>${sensor.lat.toFixed(4)}, ${sensor.lng.toFixed(4)}</td>
+          <td>${sensor.lat?.toFixed(4)}, ${sensor.lng?.toFixed(4)}</td>
           <td>
             <div class="form-check form-switch">
               <input class="form-check-input sensor-status-toggle" type="checkbox" 
-                data-sensor-id="${sensor.id}" ${sensor.status === "active" ? "checked" : ""}>
-              <span class="${sensor.status === "active" ? "text-success" : "text-muted"}">
-                ${sensor.status === "active" ? "Active" : "Inactive"}
+                data-sensor-id="${sensor.id}" ${sensor.status === "Active" ? "checked" : ""}>
+              <span class="${sensor.status === "Active" ? "text-success" : "text-muted"}">
+                ${sensor.status === "Active" ? "Active" : "Inactive"}
               </span>
             </div>
           </td>
@@ -597,28 +599,97 @@ function populateSensorsTable() {
             </button>
           </td>
         </tr>
-      `
-        })
-
-        tableBody.innerHTML = html
-
+      `;
+        });
+        tableBody.innerHTML = html;
         // Add event listeners for sensor status toggles
-        const statusToggles = document.querySelectorAll(".sensor-status-toggle")
+        const statusToggles = document.querySelectorAll(".sensor-status-toggle");
         statusToggles.forEach((toggle) => {
             toggle.addEventListener("change", function () {
-                const sensorId = Number.parseInt(this.getAttribute("data-sensor-id"))
-                toggleSensorStatus(sensorId)
-            })
-        })
-
+                const sensorId = Number.parseInt(this.getAttribute("data-sensor-id"));
+                toggleSensorStatus(sensorId, this.checked);
+            });
+        });
         // Add event listeners for delete buttons
-        const deleteButtons = document.querySelectorAll(".delete-sensor")
+        const deleteButtons = document.querySelectorAll(".delete-sensor");
         deleteButtons.forEach((button) => {
             button.addEventListener("click", function () {
-                const sensorId = Number.parseInt(this.getAttribute("data-sensor-id"))
-                deleteSensor(sensorId)
-            })
-        })
+                const sensorId = Number.parseInt(this.getAttribute("data-sensor-id"));
+                deleteSensor(sensorId);
+            });
+        });
+    }
+}
+
+async function addSensor() {
+    const name = document.getElementById("sensor-name").value.trim();
+    const lat = Number.parseFloat(document.getElementById("latitude").value);
+    const lng = Number.parseFloat(document.getElementById("longitude").value);
+    const addBtn = document.getElementById("add-sensor-btn");
+    if (!name) {
+        alert("Please enter a sensor name");
+        return;
+    }
+    if (isNaN(lat) || isNaN(lng)) {
+        alert("Please enter valid latitude and longitude.");
+        return;
+    }
+    if (addBtn) addBtn.disabled = true;
+    try {
+        const res = await fetch('/admin/sensors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, lat, lng })
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+            document.getElementById("sensor-name").value = "";
+            document.getElementById("latitude").value = "";
+            document.getElementById("longitude").value = "";
+            alert(`Sensor "${name}" added successfully!`);
+            fetchSensorsAndUpdateTable();
+        } else {
+            alert(result.message || 'Failed to add sensor.');
+        }
+    } catch (err) {
+        alert('Failed to add sensor.');
+    } finally {
+        if (addBtn) addBtn.disabled = false;
+    }
+}
+
+async function toggleSensorStatus(sensorId, isActive) {
+    const status = isActive ? "Active" : "Inactive";
+    try {
+        const res = await fetch(`/admin/sensors/${sensorId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+            fetchSensorsAndUpdateTable();
+        } else {
+            alert(result.message || 'Failed to update sensor status.');
+        }
+    } catch (err) {
+        alert('Failed to update sensor status.');
+    }
+}
+
+async function deleteSensor(sensorId) {
+    if (confirm("Are you sure you want to delete this sensor?")) {
+        try {
+            const res = await fetch(`/admin/sensors/${sensorId}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                fetchSensorsAndUpdateTable();
+            } else {
+                alert(result.message || 'Failed to delete sensor.');
+            }
+        } catch (err) {
+            alert('Failed to delete sensor.');
+        }
     }
 }
 
@@ -655,63 +726,6 @@ function populateUsersTable() {
                 deleteUser(userId)
             })
         })
-    }
-}
-
-// Add sensor
-function addSensor() {
-    const name = document.getElementById("sensor-name").value
-    const lat = Number.parseFloat(document.getElementById("latitude").value)
-    const lng = Number.parseFloat(document.getElementById("longitude").value)
-
-    if (name) {
-        // Add sensor to array
-        const newSensor = {
-            id: sensors.length + 1,
-            name,
-            status: "active",
-            lat,
-            lng,
-        }
-
-        sensors.push(newSensor)
-
-        // Update sensors table
-        populateSensorsTable()
-
-        // Clear form
-        document.getElementById("sensor-name").value = ""
-
-        // Show success message
-        alert(`Sensor "${name}" added successfully!`)
-    } else {
-        alert("Please enter a sensor name")
-    }
-}
-
-// Toggle sensor status
-function toggleSensorStatus(sensorId) {
-    // Find sensor
-    const sensor = sensors.find((s) => s.id === sensorId)
-
-    if (sensor) {
-        // Toggle status
-        sensor.status = sensor.status === "active" ? "inactive" : "active"
-
-        // Update sensors table
-        populateSensorsTable()
-    }
-}
-
-// Delete sensor
-function deleteSensor(sensorId) {
-    // Confirm deletion
-    if (confirm("Are you sure you want to delete this sensor?")) {
-        // Remove sensor from array
-        sensors = sensors.filter((s) => s.id !== sensorId)
-
-        // Update sensors table
-        populateSensorsTable()
     }
 }
 
@@ -783,8 +797,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const adminTab = document.getElementById('admin-tab');
         if (adminTab) adminTab.style.display = 'block';
         // Optionally, reload page or fetch user state
+        fetchSensorsAndUpdateTable();
     }
 
     // Optionally, check authentication state on load and show admin controls if needed
 });
+
+// Ensure sensors are always loaded after login and after any sensor change
+function showAdminControls() {
+    const adminTab = document.getElementById('admin-tab');
+    if (adminTab) adminTab.style.display = 'block';
+    fetchSensorsAndUpdateTable();
+}
 

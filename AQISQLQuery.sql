@@ -8,7 +8,7 @@ CREATE TABLE Location (
 CREATE TABLE Sensor (
     SensorId INT IDENTITY PRIMARY KEY,
     Name NVARCHAR(100) NOT NULL,
-    LocationId INT FOREIGN KEY REFERENCES Locations(LocationId),
+    LocationId INT FOREIGN KEY REFERENCES Location(LocationId),
     Status NVARCHAR(20) NOT NULL
 );
 
@@ -20,7 +20,7 @@ CREATE TABLE AdminUser (
 
 CREATE TABLE SensorData (
     SensorDataId INT IDENTITY PRIMARY KEY,
-    SensorId INT FOREIGN KEY REFERENCES Sensors(SensorId),
+    SensorId INT FOREIGN KEY REFERENCES Sensor(SensorId),
     Timestamp DATETIME NOT NULL,
     AQI INT NOT NULL,
     PM25 FLOAT,
