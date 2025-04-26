@@ -12,7 +12,7 @@ CREATE TABLE Sensor (
     Status NVARCHAR(20) NOT NULL
 );
 
-CREATE TABLE AdminUsers (
+CREATE TABLE AdminUser (
     AdminUserId INT IDENTITY PRIMARY KEY,
     Username NVARCHAR(50) NOT NULL,
     PasswordHash NVARCHAR(256) NOT NULL
