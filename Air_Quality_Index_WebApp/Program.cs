@@ -33,15 +33,25 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serve default files (e.g., index.html) from wwwroot
+app.UseDefaultFiles();
 app.UseStaticFiles();
+
 
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map attribute-routed controllers (e.g., AuthController)
+app.MapControllers();
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Fallback to index.html for client-side routing
+app.MapFallbackToFile("index.html");
 
 app.Run();

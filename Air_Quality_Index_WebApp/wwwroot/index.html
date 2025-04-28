@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colombo Air Quality Monitoring Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <!-- Your Styles -->
+    <link rel="stylesheet" href="styles.css"> <!-- Assuming you put the CSS in styles.css -->
+    <!-- You might need Chart.js CSS if you use it -->
+    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.css"> -->
+    <style>
+        /* Paste all the CSS rules you provided earlier here, or link to styles.css */
+        /* Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.5;
+            color: #333;
+            background-color: #f9fafb;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: bold;
+            margin-bottom: 1.5rem; /* mb-6 */
+        }
+
+        h2, .card-title {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            margin-bottom: 0.5rem; /* mb-2 */
+        }
+
+        .card-description {
+            color: #6b7280; /* text-gray-500 */
+            font-size: 0.875rem; /* text-sm */
+            margin-bottom: 1rem; /* mb-4 */
+        }
+
+        /* Layout */
+        main {
+            min-height: 100vh;
+            padding: 1rem; /* p-4 */
+        }
+
+        @media (min-width: 768px) { /* md: */
+            main {
+                padding: 2rem; /* md:p-8 */
+            }
+        }
+
+        /* Card Component */
+        .card {
+            background-color: white;
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* shadow */
+            margin-bottom: 1.5rem; /* mb-6 */
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1.25rem 1.5rem; /* p-5 equivalent, adjusted */
+            border-bottom: 1px solid #e5e7eb; /* border-b */
+        }
+
+        .card-content {
+            padding: 1.5rem; /* p-6 */
+        }
+
+         /* Special case for map card content */
+        .card-content.p-0 {
+            padding: 0;
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            gap: 1.5rem; /* gap-6 */
+        }
+
+        .grid-cols-1 {
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+
+         @media (min-width: 768px) { /* md: */
+             .md-grid-cols-2 {
+                 grid-template-columns: repeat(2, minmax(0, 1fr));
+             }
+              .md-grid-cols-3 {
+                 grid-template-columns: repeat(3, minmax(0, 1fr));
+             }
+         }
+
+        @media (min-width: 1024px) { /* lg: */
+            .lg-grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .lg-col-span-2 {
+                grid-column: span 2 / span 2;
+            }
+
+            .lg-col-span-3 {
+                grid-column: span 3 / span 3;
+            }
+        }
+
+        /* Tabs Component */
+        .tabs {
+            margin-bottom: 2rem; /* mb-8 */
+        }
+
+        .tabs-list {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb; /* border-b */
+            margin-bottom: 1rem; /* mb-4 */
+            /* Added for admin panel tabs */
+            margin-top: 1.5rem; /* mt-6 */
+        }
+        .admin-panel .tabs-list { /* Specificity for admin tabs */
+             margin-top: 0; /* Reset margin for admin tabs list */
+             margin-bottom: 1.5rem; /* mb-6 */
+        }
+
+
+        .tab-trigger {
+            padding: 0.75rem 1rem; /* py-3 px-4 */
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+            color: #6b7280; /* text-gray-500 */
+            border-bottom: 2px solid transparent; /* For active state */
+            margin-bottom: -1px; /* Overlap border */
+        }
+
+        .tab-trigger.active {
+            color: #2563eb; /* text-blue-600 */
+            border-bottom-color: #2563eb; /* border-blue-600 */
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        /* Added for admin panel tabs content */
+         .tab-content.mt-6 {
+             margin-top: 1.5rem;
+         }
+
+        /* Map Container */
+        .map-container {
+            height: 500px;
+            width: 100%;
+            border-radius: 0.5rem; /* rounded-lg - might be inherited */
+        }
+
+        /* AQI Legend */
+        .aqi-legend {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem; /* gap-4 */
+        }
+
+        @media (min-width: 768px) { /* md: */
+            .aqi-legend {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1024px) { /* lg: */
+            .aqi-legend {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+            }
+        }
+
+        .aqi-category {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .aqi-color {
+            width: 2rem; /* w-8 */
+            height: 2rem; /* h-8 */
+            border-radius: 9999px; /* rounded-full */
+            margin-bottom: 0.5rem; /* mb-2 */
+        }
+
+        .aqi-category p:first-of-type {
+            font-weight: 500; /* font-medium */
+        }
+
+        .aqi-category p:last-of-type {
+            font-size: 0.875rem; /* text-sm */
+            color: #6b7280; /* text-gray-500 */
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem; /* mb-4 */
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem; /* mb-2 */
+            font-weight: 500; /* font-medium */
+            font-size: 0.875rem; /* text-sm */
+        }
+
+        input, select {
+            width: 100%; /* w-full */
+            padding: 0.5rem; /* p-2 */
+            border: 1px solid #d1d5db; /* border */
+            border-radius: 0.25rem; /* rounded */
+            font-size: 0.875rem; /* text-sm */
+        }
+        input[type="password"] {
+             /* Specific styles if needed */
+        }
+         input[type="number"] {
+             /* Specific styles if needed */
+        }
+         input[type="email"] {
+             /* Specific styles if needed */
+         }
+
+        /* Button Styles */
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            border-radius: 0.25rem; /* rounded */
+            font-weight: 500; /* font-medium */
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* hover:bg-blue-700 */
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #d1d5db; /* border */
+        }
+
+        .btn-outline:hover {
+            background-color: #f3f4f6; /* hover:bg-gray-100 */
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem; /* py-1 px-2 */
+            font-size: 0.75rem; /* text-xs */
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem; /* p-3 */
+            border-bottom: 1px solid #e5e7eb; /* border-b */
+            text-align: left;
+            font-size: 0.875rem; /* text-sm */
+        }
+
+        th {
+            font-weight: 500; /* font-medium */
+            color: #6b7280; /* text-gray-500 */
+        }
+
+        /* Status Badge */
+        .badge {
+            display: inline-block; /* Added */
+            padding: 0.25rem 0.5rem; /* py-1 px-2 */
+            border-radius: 0.25rem; /* rounded */
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 500; /* font-medium */
+        }
+
+        .badge-green {
+            background-color: #d1fae5; /* bg-green-100 */
+            color: #065f46; /* text-green-800 */
+        }
+
+        .badge-red {
+            background-color: #fee2e2; /* bg-red-100 */
+            color: #991b1b; /* text-red-800 */
+        }
+        .badge-yellow { /* Added for potential moderate status */
+             background-color: #fef9c3; /* bg-yellow-100 */
+             color: #854d0e; /* text-yellow-800 */
+        }
+         .badge-gray { /* Added for potential offline/unknown status */
+             background-color: #f3f4f6; /* bg-gray-100 */
+             color: #4b5563; /* text-gray-700 */
+         }
+
+        /* Dialog/Modal (Not present in HTML, but styles exist) */
+        /* Center native <dialog> and style backdrop */
+        dialog:not([open]) { display: none; }
+        dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0;
+            z-index: 1000;
+        }
+        dialog::backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        /* Widen the edit sensor dialog */
+        #edit-sensor-modal {
+            width: 100%;
+            max-width: 40rem; /* ~640px */
+        }
+        /* Make edit-sensor dialog span ~90vw and cap at 40rem */
+        #edit-sensor-modal[open] {
+            width: 90vw;
+            max-width: 40rem;
+        }
+
+        /* Switch Component */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px; /* Adjusted */
+            height: 24px; /* Adjusted */
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #d1d5db; /* bg-gray-300 */
+            transition: .4s;
+            border-radius: 24px; /* rounded-full */
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; /* Adjusted */
+            width: 18px; /* Adjusted */
+            left: 3px; /* Adjusted */
+            bottom: 3px; /* Adjusted */
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2563eb; /* bg-blue-600 */
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px); /* Adjusted */
+        }
+
+        /* Select Component */
+        .select-wrapper {
+            position: relative;
+            display: inline-block; /* Added */
+        }
+
+        .select-wrapper select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E"); /* Updated SVG */
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem; /* pr-10 */
+        }
+
+        /* Chart Container */
+        .chart-container {
+            height: 300px;
+            width: 100%;
+            position: relative; /* Needed for Chart.js responsiveness */
+        }
+
+        /* AQI Current Reading */
+        .aqi-reading {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem; /* gap-2 */
+        }
+
+        .aqi-indicator {
+            width: 2rem; /* w-8 */
+            height: 2rem; /* h-8 */
+            border-radius: 9999px; /* rounded-full */
+        }
+
+        .aqi-value {
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: bold;
+        }
+
+        /* Utility Classes */
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; } /* Added */
+        .justify-end { justify-content: flex-end; } /* Added for right-aligning buttons */
+        .space-y-4 > *:not([hidden]) ~ *:not([hidden]) { margin-top: 1rem; }
+        .space-y-6 > *:not([hidden]) ~ *:not([hidden]) { margin-top: 1.5rem; }
+        .gap-2 { gap: 0.5rem; } /* Added */
+        .gap-4 { gap: 1rem; } /* Added */
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-6 { margin-top: 1.5rem; } /* Added */
+        .hidden { display: none; }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; } /* Added */
+        .text-2xl { font-size: 1.5rem; }
+        .text-3xl { font-size: 1.875rem; } /* Added */
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; } /* Added */
+        .font-bold { font-weight: 700; }
+        .text-gray-500 { color: #6b7280; }
+        .text-red-500 { color: #ef4444; }
+        /* .font-mono, .overflow-y-auto, etc. if needed */
+        .h-64 { height: 16rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .border { border: 1px solid #e5e7eb; }
+        /* .bg-gray-100 { background-color: #f3f4f6; } */
+        .p-0 { padding: 0; } /* Added */
+        .p-2 { padding: 0.5rem; } /* Added */
+        .p-3 { padding: 0.75rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        /* .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; } */
+        .max-w-md { max-width: 28rem; }
+        .max-w-xl { max-width: 36rem; } /* Added a wider utility for dialog width */
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .w-full { width: 100%; }
+    </style>
+</head>
+<body>
+    <!-- Paste the <main>...</main> section you provided here -->
+     <main class="min-h-screen p-4 md:p-8">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold mb-6">Colombo Air Quality Monitoring Dashboard</h1>
+
+            <div class="tabs main-tabs"> <!-- Added main-tabs class -->
+                <div class="tabs-list">
+                    <button class="tab-trigger active" data-tab="dashboard">Dashboard</button>
+                    <button class="tab-trigger" data-tab="admin">Admin Panel</button>
+                </div>
+
+                <div id="dashboard" class="tab-content active">
+                    <div class="grid grid-cols-1 lg-grid-cols-3 gap-6">
+                        <div class="card lg-col-span-2">
+                            <div class="card-header">
+                                <h2 class="card-title">Air Quality Map</h2>
+                                <p class="card-description">Real-time AQI readings across Colombo</p>
+                            </div>
+                            <div class="card-content p-0">
+                                <div id="map" class="map-container"></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">AQI Information</h2>
+                                <p class="card-description" id="sensor-description">Select a sensor on the map to view details</p>
+                            </div>
+                            <div class="card-content">
+                                <div id="sensor-details" class="hidden space-y-6">
+                                    <div>
+                                        <h3 class="text-lg font-medium">Current Reading</h3>
+                                        <div class="mt-2 flex items-center gap-2 aqi-reading">
+                                            <div id="aqi-indicator" class="aqi-indicator"></div>
+                                            <div>
+                                                <p id="aqi-value" class="aqi-value"></p>
+                                                <p id="aqi-category" class="text-sm"></p> <!-- Added text-sm -->
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h3 class="text-lg font-medium">Historical Data</h3>
+                                            <div class="select-wrapper">
+                                                <select id="time-range">
+                                                    <option value="day">Last 24 Hours</option>
+                                                    <option value="week">Last Week</option>
+                                                    <option value="month">Last Month</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="chart-container">
+                                            <canvas id="historical-chart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="no-sensor-selected" class="flex items-center justify-center h-64 text-center text-gray-500">
+                                    <p>Click on a sensor marker on the map to view detailed information</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card lg-col-span-3">
+                            <div class="card-header">
+                                <h2 class="card-title">AQI Legend</h2>
+                                <p class="card-description">Understanding Air Quality Index values</p>
+                            </div>
+                            <div class="card-content">
+                                <div class="aqi-legend">
+                                    <div class="aqi-category">
+                                        <div class="aqi-color" style="background-color: #4ade80;"></div>
+                                        <p>Good</p>
+                                        <p>0-50</p>
+                                    </div>
+                                    <div class="aqi-category">
+                                        <div class="aqi-color" style="background-color: #facc15;"></div>
+                                        <p>Moderate</p>
+                                        <p>51-100</p>
+                                    </div>
+                                    <div class="aqi-category">
+                                        <div class="aqi-color" style="background-color: #f97316;"></div>
+                                        <p>Unhealthy for Sensitive Groups</p>
+                                        <p>101-150</p>
+                                    </div>
+                                    <div class="aqi-category">
+                                        <div class="aqi-color" style="background-color: #ef4444;"></div>
+                                        <p>Unhealthy</p>
+                                        <p>151-200</p>
+                                    </div>
+                                    <div class="aqi-category">
+                                        <div class="aqi-color" style="background-color: #a855f7;"></div>
+                                        <p>Very Unhealthy</p>
+                                        <p>201-300</p>
+                                    </div>
+                                    <div class="aqi-category">
+                                        <div class="aqi-color" style="background-color: #7f1d1d;"></div>
+                                        <p>Hazardous</p>
+                                        <p>301+</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="admin" class="tab-content">
+                    <div id="admin-login" class="p-6 border rounded-lg max-w-md mx-auto">
+                        <h2 class="text-xl font-semibold mb-4">Admin Login</h2>
+                        <p id="login-error" class="text-red-500 mb-4 hidden"></p>
+                        <div class="space-y-4">
+                            <!-- Added Username Field -->
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" id="username" class="w-full p-2 border rounded">
+                            </div>
+                            <!-- End Added Username Field -->
+                            <div class="form-group">
+                                <label for="password">Password</label>
+                                <input type="password" id="password" class="w-full p-2 border rounded">
+                            </div>
+                            <button id="login-btn" class="btn btn-primary w-full">Login</button>
+                        </div>
+                    </div>
+
+                    <div id="admin-panel" class="hidden space-y-6">
+                        <!-- Admin Tabs -->
+                        <div class="tabs admin-tabs"> <!-- Added admin-tabs class -->
+                            <div class="tabs-list">
+                                <button class="tab-trigger active" data-tab="admin-sensors">Sensor Management</button>
+                                <button class="tab-trigger" data-tab="admin-simulation">Simulation Settings</button>
+                                <button class="tab-trigger" data-tab="admin-users">User Management</button>
+                                <button class="tab-trigger" data-tab="admin-system">System Status</button>
+                            </div>
+
+                            <!-- Admin Sensor Management Tab Content -->
+                            <div id="admin-sensors" class="tab-content active space-y-6 mt-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">Add New Sensor</h2>
+                                        <p class="card-description">Register a new air quality sensor in Colombo</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="form-group">
+                                                <label for="sensor-name">Sensor Name</label>
+                                                <input id="sensor-name" placeholder="e.g., Wellawatte">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="sensor-aqi">Initial AQI</label>
+                                                <input id="sensor-aqi" type="number" placeholder="50" value="50">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="sensor-lat">Latitude</label>
+                                                <input id="sensor-lat" placeholder="e.g., 6.9271">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="sensor-lng">Longitude</label>
+                                                <input id="sensor-lng" placeholder="e.g., 79.8612">
+                                            </div>
+                                        </div>
+                                        <button id="add-sensor-btn" class="btn btn-primary mt-4">Add Sensor</button>
+                                    </div>
+                                </div>
+
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">Manage Sensors</h2>
+                                        <p class="card-description">View and manage all registered sensors</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Name</th>
+                                                    <th>Location</th>
+                                                    <th>Current AQI</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="sensors-table-body">
+                                                <!-- Sensor rows will be inserted here by JS -->
+                                                <!-- Example Row (for structure):
+                                                <tr>
+                                                    <td>1</td>
+                                                    <td>Wellawatte</td>
+                                                    <td>6.87, 79.86</td>
+                                                    <td>75</td>
+                                                    <td><span class="badge badge-yellow">Moderate</span></td>
+                                                    <td>
+                                                        <button class="btn btn-outline btn-sm">Edit</button>
+                                                        <button class="btn btn-outline btn-sm text-red-500">Delete</button>
+                                                    </td>
+                                                </tr>
+                                                -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Admin Simulation Settings Tab Content -->
+                            <div id="admin-simulation" class="tab-content space-y-6 mt-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">Simulation Settings</h2>
+                                        <p class="card-description">Configure how the simulated data is generated</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="space-y-6">
+                                            <div class="switch-container">
+                                                <div>
+                                                    <h3 class="text-lg font-medium">Simulation Status</h3>
+                                                    <p class="text-sm text-gray-500">Enable or disable data simulation</p>
+                                                </div>
+                                                <label class="switch">
+                                                    <input type="checkbox" id="simulation-active" checked>
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="simulation-interval">Data Generation Interval (seconds)</label>
+                                                <input id="simulation-interval" type="number" value="30" min="5" max="300">
+                                                <p class="text-sm text-gray-500">How often new data points are generated (5-300 seconds)</p>
+                                            </div>
+
+                                            <button id="save-simulation-btn" class="btn btn-primary">Save Settings</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">Alert Configuration</h2>
+                                        <p class="card-description">Set thresholds for air quality alerts</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="space-y-4">
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div class="form-group">
+                                                    <label for="moderate-threshold">Moderate Threshold</label>
+                                                    <input id="moderate-threshold" type="number" value="51">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="unhealthy-sensitive-threshold">Unhealthy for Sensitive Groups</label>
+                                                    <input id="unhealthy-sensitive-threshold" type="number" value="101">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="unhealthy-threshold">Unhealthy Threshold</label>
+                                                    <input id="unhealthy-threshold" type="number" value="151">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="very-unhealthy-threshold">Very Unhealthy Threshold</label>
+                                                    <input id="very-unhealthy-threshold" type="number" value="201">
+                                                </div>
+                                                 <div class="form-group"> <!-- Added Hazardous -->
+                                                    <label for="hazardous-threshold">Hazardous Threshold</label>
+                                                    <input id="hazardous-threshold" type="number" value="301">
+                                                </div>
+                                            </div>
+                                            <button id="save-thresholds-btn" class="btn btn-primary">Save Thresholds</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Admin User Management Tab Content -->
+                            <div id="admin-users" class="tab-content space-y-6 mt-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">Add New Admin User</h2>
+                                        <p class="card-description">Create a new monitoring admin account</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="form-group">
+                                                <label for="user-username">Username</label>
+                                                <input id="user-username" placeholder="e.g., john_admin">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="user-email">Email</label>
+                                                <input id="user-email" type="email" placeholder="e.g., john@example.com">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="user-password">Password</label>
+                                                <input id="user-password" type="password" placeholder="Enter password">
+                                            </div>
+                                        </div>
+                                        <button id="add-user-btn" class="btn btn-primary mt-4">Add User</button>
+                                    </div>
+                                </div>
+
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">Manage Admin Users</h2>
+                                        <p class="card-description">View and manage monitoring admin accounts</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Username</th>
+                                                    <th>Email</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="users-table-body">
+                                                <!-- User rows will be inserted here by JS -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Admin System Status Tab Content -->
+                            <div id="admin-system" class="tab-content space-y-6 mt-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h2 class="card-title">System Status</h2>
+                                        <p class="card-description">Overview of the system status</p>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="space-y-4">
+                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div class="p-4 border rounded-lg">
+                                                    <h3 class="text-sm font-medium text-gray-500">Active Sensors</h3>
+                                                    <p id="active-sensors-count" class="text-2xl font-bold">0</p>
+                                                </div>
+                                                <div class="p-4 border rounded-lg">
+                                                    <h3 class="text-sm font-medium text-gray-500">Simulation Status</h3>
+                                                    <p id="simulation-status" class="text-2xl font-bold">Running</p> <!-- Default text -->
+                                                </div>
+                                                <div class="p-4 border rounded-lg">
+                                                    <h3 class="text-sm font-medium text-gray-500">Data Points Today</h3>
+                                                    <p id="data-points-today" class="text-2xl font-bold">0</p> <!-- Added ID -->
+                                                </div>
+                                            </div>
+                                            <!-- Add more system status details if needed -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div> <!-- End Admin Tabs -->
+                    </div> <!-- End Admin Panel -->
+                </div> <!-- End Admin Tab Content -->
+            </div> <!-- End Main Tabs -->
+        </div>
+    </main>
+
+<!-- Edit Sensor Modal -->
+<dialog id="edit-sensor-modal">
+  <form id="edit-sensor-form" method="dialog" class="bg-white p-6 rounded-lg w-full space-y-4">
+    <h3 class="text-xl font-semibold mb-4">Edit Sensor</h3>
+    <div class="form-group">
+      <label for="edit-sensor-name">Sensor Name</label>
+      <input id="edit-sensor-name" class="w-full p-2 border rounded">
+    </div>
+    <div class="form-group">
+      <label for="edit-sensor-aqi">AQI</label>
+      <input id="edit-sensor-aqi" type="number" class="w-full p-2 border rounded">
+    </div>
+    <div class="form-group">
+      <label for="edit-sensor-lat">Latitude</label>
+      <input id="edit-sensor-lat" type="number" class="w-full p-2 border rounded">
+    </div>
+    <div class="form-group">
+      <label for="edit-sensor-lng">Longitude</label>
+      <input id="edit-sensor-lng" type="number" class="w-full p-2 border rounded">
+    </div>
+    <div class="flex justify-end gap-2">
+      <button type="button" id="cancel-edit-sensor" class="btn btn-outline">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Confirmation Modal -->
+<dialog id="confirmation-modal">
+  <form method="dialog" class="bg-white p-6 rounded-lg w-full max-w-sm space-y-4">
+    <p id="confirm-message" class="mb-4"></p>
+    <div class="flex justify-end gap-2">
+      <button type="button" id="confirm-no" class="btn btn-outline">No</button>
+      <button type="button" id="confirm-yes" class="btn btn-primary">Yes</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<!-- Chart.js JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Your Custom Script -->
+<script src="script.js"></script>
+</body>
+</html>
