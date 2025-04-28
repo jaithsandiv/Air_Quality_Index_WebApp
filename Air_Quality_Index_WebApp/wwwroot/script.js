@@ -650,10 +650,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  loadAdminUsers();
                  
                  console.log('Added new admin user:', data.username);
-                 alert(`Admin user "${data.username}" added successfully.`);
              } else {
                  console.error('Failed to add user:', data.message);
-                 alert('Failed to add user: ' + data.message);
              }
          })
          .catch(error => {
@@ -712,7 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  console.log(`Successfully deleted user ID ${userId}`);
              } else {
                  console.error(`Failed to delete user ID ${userId}:`, data.message);
-                 alert('Failed to delete user: ' + data.message);
              }
          })
          .catch(error => {
