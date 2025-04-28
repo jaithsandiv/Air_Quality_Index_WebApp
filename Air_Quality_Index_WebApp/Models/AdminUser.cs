@@ -14,5 +14,10 @@ namespace Air_Quality_Index_WebApp.Models
         [Required]
         [StringLength(256)]
         public string PasswordHash { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
     }
 }

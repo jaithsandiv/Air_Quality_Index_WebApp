@@ -12,14 +12,19 @@ namespace Air_Quality_Index_WebApp.Data
         public DbSet<AdminUser> AdminUsers { get; set; }
         public DbSet<Sensor> Sensors { get; set; }
         public DbSet<SensorData> SensorData { get; set; }
-        public DbSet<Location> Locations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AdminUser>().ToTable("AdminUser");
             modelBuilder.Entity<Sensor>().ToTable("Sensor");
             modelBuilder.Entity<SensorData>().ToTable("SensorData");
-            modelBuilder.Entity<Location>().ToTable("Location");
+            
+            // Set up cascade delete for SensorData when a Sensor is deleted
+            modelBuilder.Entity<SensorData>()
+                .HasOne(sd => sd.Sensor)
+                .WithMany(s => s.SensorData)
+                .HasForeignKey(sd => sd.SensorId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

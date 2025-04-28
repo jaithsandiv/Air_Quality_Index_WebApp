@@ -1,9 +1,10 @@
 using System.Security.Cryptography;
+using System;
 using System.Text;
 
-namespace Air_Quality_Index_WebApp.Models
+namespace Air_Quality_Index_WebApp.Services
 {
-    public static class AuthHelper
+    public class PasswordHashService
     {
         // Hashes a plain password using SHA256
         public static string HashPassword(string password)

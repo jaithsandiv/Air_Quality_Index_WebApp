@@ -1,4 +1,6 @@
 using Air_Quality_Index_WebApp.Data;
+using Air_Quality_Index_WebApp.Models;
+using Air_Quality_Index_WebApp.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -17,9 +19,9 @@ builder.Services.AddHttpClient<Air_Quality_Index_WebApp.Services.WaqiService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/admin/login";
-        options.LogoutPath = "/admin/logout";
-        options.AccessDeniedPath = "/admin/login";
+        options.LoginPath = "/auth/login";
+        options.LogoutPath = "/auth/logout";
+        options.AccessDeniedPath = "/auth/login";
     });
 
 var app = builder.Build();
@@ -32,12 +34,35 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Seed the database with an initial admin user
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<AirQualityContext>();
+    context.Database.EnsureCreated();
+    
+    // Check if there are any admin users
+    if (!context.AdminUsers.Any())
+    {
+        // Create a default admin user
+        string passwordHash = PasswordHashService.HashPassword("password");
+        
+        context.AdminUsers.Add(new AdminUser
+        {
+            Username = "admin",
+            PasswordHash = passwordHash,
+            Email = "admin@example.com"
+        });
+        
+        context.SaveChanges();
+    }
+}
+
 app.UseHttpsRedirection();
 
 // Serve default files (e.g., index.html) from wwwroot
 app.UseDefaultFiles();
 app.UseStaticFiles();
-
 
 app.UseRouting();
 
