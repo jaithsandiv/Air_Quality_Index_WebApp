@@ -186,47 +186,52 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateChart(sensorId, timeRange) {
         if (!historicalChart) return;
         console.log(`Fetching historical data for sensor ${sensorId}, range: ${timeRange}`);
-        // --- TODO: Fetch or simulate historical data based on sensorId and timeRange ---
-        // Example simulation:
-        let labels = [];
-        let data = [];
-        const now = Date.now();
-        let points = 0;
-        let interval = 0;
-
-        switch (timeRange) {
-            case 'day':
-                points = 24;
-                interval = 60 * 60 * 1000; // Hourly for last 24h
-                break;
-            case 'week':
-                points = 7;
-                interval = 24 * 60 * 60 * 1000; // Daily for last week
-                break;
-            case 'month':
-                points = 30; // Approx
-                interval = 24 * 60 * 60 * 1000; // Daily for last month
-                break;
-            default:
-                points = 24;
-                interval = 60 * 60 * 1000;
-        }
-
-        for (let i = points - 1; i >= 0; i--) {
-            const timestamp = now - i * interval;
-            const date = new Date(timestamp);
-            if (timeRange === 'day') {
-                labels.push(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-            } else {
-                 labels.push(date.toLocaleDateString([], { month: 'short', day: 'numeric' }));
-            }
-            data.push(Math.floor(Math.random() * 150) + 20); // Random AQI data
-        }
-
-
-        historicalChart.data.labels = labels;
-        historicalChart.data.datasets[0].data = data;
-        historicalChart.update();
+        
+        // Fetch real historical data from our new API endpoint
+        fetch(`/Home/SensorHistory?sensorId=${sensorId}&timeRange=${timeRange}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received historical data:', data);
+                
+                if (data.labels && data.data) {
+                    // Update chart with real data
+                    historicalChart.data.labels = data.labels;
+                    historicalChart.data.datasets[0].data = data.data;
+                    
+                    // Update chart colors based on data values
+                    const colors = data.data.map(value => getAqiInfo(value).color);
+                    historicalChart.data.datasets[0].borderColor = colors[0] || 'rgb(75, 192, 192)';
+                    
+                    // Add gradient fill
+                    const ctx = historicalChart.ctx;
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                    const mainColor = colors[0] || 'rgb(75, 192, 192)';
+                    gradient.addColorStop(0, mainColor + '80'); // Add transparency
+                    gradient.addColorStop(1, mainColor + '10');
+                    historicalChart.data.datasets[0].backgroundColor = gradient;
+                    
+                    historicalChart.update();
+                } else {
+                    console.warn('No historical data available for this sensor/timeframe');
+                    // Clear chart or show placeholder message
+                    historicalChart.data.labels = [];
+                    historicalChart.data.datasets[0].data = [];
+                    historicalChart.update();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching historical data:', error);
+                
+                // Show error in chart or use placeholder data
+                historicalChart.data.labels = ['Error loading data'];
+                historicalChart.data.datasets[0].data = [0];
+                historicalChart.update();
+            });
     }
 
     // --- Data Handling ---
