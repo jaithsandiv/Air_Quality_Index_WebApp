@@ -9,8 +9,8 @@ CREATE TABLE Sensor (
 CREATE TABLE AdminUser (
     AdminUserId INT IDENTITY PRIMARY KEY,
     Username NVARCHAR(50) NOT NULL,
-    Email NVARCHAR(100) NOT NULL,
-    PasswordHash NVARCHAR(256) NOT NULL
+    PasswordHash NVARCHAR(256) NOT NULL,
+    Email NVARCHAR(100) NOT NULL
 );
 
 CREATE TABLE SensorData (
@@ -18,4 +18,20 @@ CREATE TABLE SensorData (
     SensorId INT FOREIGN KEY REFERENCES Sensor(SensorId) ON DELETE CASCADE,
     Timestamp DATETIME NOT NULL,
     AQI INT NOT NULL
+);
+
+CREATE TABLE SimulationSettings (
+    SimulationSettingsId INT PRIMARY KEY DEFAULT 1,
+    Enabled BIT NOT NULL DEFAULT 1,
+    IntervalSeconds INT NOT NULL DEFAULT 30
+);
+
+CREATE TABLE AlertThreshold (
+    AlertThresholdId INT IDENTITY PRIMARY KEY,
+    ModerateThreshold INT NOT NULL DEFAULT 51,
+    UnhealthySensitiveThreshold INT NOT NULL DEFAULT 101,
+    UnhealthyThreshold INT NOT NULL DEFAULT 151,
+    VeryUnhealthyThreshold INT NOT NULL DEFAULT 201,
+    HazardousThreshold INT NOT NULL DEFAULT 301,
+    LastUpdated DATETIME NOT NULL DEFAULT GETUTCDATE()
 );

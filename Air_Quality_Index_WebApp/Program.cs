@@ -15,6 +15,11 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient<Air_Quality_Index_WebApp.Services.WaqiService>();
 
+// Register the simulation service as a singleton hosted service only
+builder.Services.AddHostedService<SimulationService>();
+// Register a simulation accessor service to get access to the hosted service
+builder.Services.AddSingleton<SimulationServiceAccessor>();
+
 // Add cookie authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
