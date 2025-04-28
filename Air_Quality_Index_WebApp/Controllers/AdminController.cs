@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Air_Quality_Index_WebApp.Data;
@@ -11,7 +12,8 @@ using Newtonsoft.Json.Linq;
 namespace Air_Quality_Index_WebApp.Controllers
 {
     [Route("admin")]
-    public class AdminController : Controller
+    [ApiController]  // Add this attribute to make it a proper API controller
+    public class AdminController : ControllerBase  // Change to ControllerBase for API controllers
     {
         private readonly AirQualityContext _context;
         private readonly WaqiService _waqiService;
@@ -32,23 +34,22 @@ namespace Air_Quality_Index_WebApp.Controllers
 
             var data = waqiData["data"];
             int aqi = data["aqi"]?.Value<int>() ?? 0;
-            double? pm25 = data["iaqi"]?["pm25"]?["v"]?.Value<double>();
-            double? pm10 = data["iaqi"]?["pm10"]?["v"]?.Value<double>();
-            double? o3 = data["iaqi"]?["o3"]?["v"]?.Value<double>();
-            double? no2 = data["iaqi"]?["no2"]?["v"]?.Value<double>();
             DateTime timestamp = DateTime.UtcNow;
 
             // Find or create a sensor for this city
             var sensor = await _context.Sensors.FirstOrDefaultAsync(s => s.Name.ToLower() == city.ToLower());
             if (sensor == null)
             {
-                // For demo: create a new sensor with default location
-                var location = await _context.Locations.FirstOrDefaultAsync();
+                // For demo: create a new sensor with default location coordinates
+                // In a real app, you might want to geocode the city name to get coordinates
+                double defaultLat = 0.0; // Default latitude
+                double defaultLng = 0.0; // Default longitude
+                
                 sensor = new Sensor
                 {
                     Name = city,
-                    Location = location,
-                    LocationId = location?.LocationId ?? 1,
+                    Latitude = defaultLat,
+                    Longitude = defaultLng,
                     Status = "Active"
                 };
                 _context.Sensors.Add(sensor);
@@ -59,43 +60,12 @@ namespace Air_Quality_Index_WebApp.Controllers
             {
                 SensorId = sensor.SensorId,
                 Timestamp = timestamp,
-                AQI = aqi,
-                PM25 = pm25,
-                PM10 = pm10,
-                O3 = o3,
-                NO2 = no2
+                AQI = aqi
             };
             _context.SensorData.Add(sensorData);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"WAQI data for {city} saved.", aqi, pm25, pm10, o3, no2 });
-        }
-
-        // POST: /admin/login
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
-        {
-            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-                return BadRequest(new { success = false, message = "Username and password are required." });
-
-            // Find admin user by username
-            var admin = await _context.AdminUsers.FirstOrDefaultAsync(u => u.Username == request.Username);
-            if (admin == null)
-                return Unauthorized(new { success = false, message = "Invalid username or password." });
-
-            // Compare password hash (assuming PasswordHash is a hash, e.g., SHA256)
-            var inputHash = AuthHelper.HashPassword(request.Password); // You may need to implement this helper
-            if (admin.PasswordHash != inputHash)
-                return Unauthorized(new { success = false, message = "Invalid username or password." });
-
-            // Success: return a simple success response (for demo, no JWT/session)
-            return Ok(new { success = true, message = "Login successful." });
-        }
-
-        public class LoginRequest
-        {
-            public string Username { get; set; }
-            public string Password { get; set; }
+            return Ok(new { message = $"WAQI data for {city} saved.", aqi });
         }
 
         // --- SENSOR MANAGEMENT API ENDPOINTS ---
@@ -104,17 +74,29 @@ namespace Air_Quality_Index_WebApp.Controllers
         [HttpGet("sensors")]
         public async Task<IActionResult> GetSensors()
         {
-            var sensors = await _context.Sensors.Include(s => s.Location).ToListAsync();
-            var result = sensors.Select(s => new {
-                id = s.SensorId,
-                name = s.Name,
-                status = s.Status,
-                lat = s.Location?.Latitude,
-                lng = s.Location?.Longitude,
-                locationId = s.LocationId,
-                locationName = s.Location?.Name
-            });
-            return Ok(result);
+            var sensors = await _context.Sensors.ToListAsync();
+            var sensorsWithLatestData = new List<object>();
+            
+            foreach (var sensor in sensors)
+            {
+                // Get the latest sensor data for each sensor
+                var latestData = await _context.SensorData
+                    .Where(sd => sd.SensorId == sensor.SensorId)
+                    .OrderByDescending(sd => sd.Timestamp)
+                    .FirstOrDefaultAsync();
+                
+                sensorsWithLatestData.Add(new {
+                    id = sensor.SensorId,
+                    name = sensor.Name,
+                    status = sensor.Status,
+                    lat = sensor.Latitude,
+                    lng = sensor.Longitude,
+                    aqi = latestData?.AQI ?? 0,
+                    lastUpdated = latestData?.Timestamp
+                });
+            }
+            
+            return Ok(sensorsWithLatestData);
         }
 
         // POST: /admin/sensors
@@ -124,31 +106,49 @@ namespace Air_Quality_Index_WebApp.Controllers
             if (string.IsNullOrWhiteSpace(req.Name))
                 return BadRequest(new { success = false, message = "Sensor name is required." });
 
-            // Find or create location
-            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Latitude == req.Lat && l.Longitude == req.Lng);
-            if (location == null)
-            {
-                location = new Location { Name = req.Name + " Location", Latitude = req.Lat, Longitude = req.Lng };
-                _context.Locations.Add(location);
-                await _context.SaveChangesAsync();
-            }
+            if (req.InitialAQI < 0)
+                return BadRequest(new { success = false, message = "Initial AQI must be a non-negative value." });
 
+            // Create new sensor with coordinates directly included
             var sensor = new Sensor
             {
                 Name = req.Name,
-                Status = "Active",
-                LocationId = location.LocationId
+                Latitude = req.Lat,
+                Longitude = req.Lng,
+                Status = "Active"
             };
+
             _context.Sensors.Add(sensor);
             await _context.SaveChangesAsync();
-            return Ok(new { success = true, message = "Sensor added.", id = sensor.SensorId });
+
+            // Create initial sensor data with provided AQI value
+            var sensorData = new SensorData
+            {
+                SensorId = sensor.SensorId,
+                AQI = req.InitialAQI,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _context.SensorData.Add(sensorData);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                success = true, 
+                message = "Sensor added successfully.", 
+                id = sensor.SensorId,
+                name = sensor.Name,
+                lat = sensor.Latitude,
+                lng = sensor.Longitude,
+                aqi = sensorData.AQI
+            });
         }
 
         public class AddSensorRequest
         {
-            public string Name { get; set; }
+            public string Name { get; set; } = string.Empty;
             public double Lat { get; set; }
             public double Lng { get; set; }
+            public int InitialAQI { get; set; } = 50; // Default value
         }
 
         // PUT: /admin/sensors/{id}/status
@@ -168,6 +168,56 @@ namespace Air_Quality_Index_WebApp.Controllers
             public string Status { get; set; }
         }
 
+        // PUT: /admin/sensors/{id}
+        [HttpPut("sensors/{id}")]
+        public async Task<IActionResult> UpdateSensor(int id, [FromBody] UpdateSensorRequest req)
+        {
+            var sensor = await _context.Sensors.FindAsync(id);
+            if (sensor == null)
+                return NotFound(new { success = false, message = "Sensor not found." });
+            
+            // Update the sensor properties
+            sensor.Name = req.Name ?? sensor.Name;
+            sensor.Latitude = req.Lat ?? sensor.Latitude;
+            sensor.Longitude = req.Lng ?? sensor.Longitude;
+            
+            // Update the sensor in the database
+            _context.Sensors.Update(sensor);
+            await _context.SaveChangesAsync();
+            
+            // If the AQI was updated, add a new SensorData entry
+            if (req.AQI.HasValue)
+            {
+                var sensorData = new SensorData
+                {
+                    SensorId = sensor.SensorId,
+                    AQI = req.AQI.Value,
+                    Timestamp = DateTime.UtcNow
+                };
+                
+                _context.SensorData.Add(sensorData);
+                await _context.SaveChangesAsync();
+            }
+            
+            return Ok(new { 
+                success = true, 
+                message = "Sensor updated successfully.",
+                id = sensor.SensorId,
+                name = sensor.Name,
+                lat = sensor.Latitude,
+                lng = sensor.Longitude,
+                aqi = req.AQI
+            });
+        }
+
+        public class UpdateSensorRequest
+        {
+            public string? Name { get; set; }
+            public double? Lat { get; set; }
+            public double? Lng { get; set; }
+            public int? AQI { get; set; }
+        }
+
         // DELETE: /admin/sensors/{id}
         [HttpDelete("sensors/{id}")]
         public async Task<IActionResult> DeleteSensor(int id)
@@ -178,6 +228,96 @@ namespace Air_Quality_Index_WebApp.Controllers
             _context.Sensors.Remove(sensor);
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Sensor deleted." });
+        }
+
+        // --- USER MANAGEMENT API ENDPOINTS ---
+
+        // GET: /admin/users
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers()
+        {
+            try
+            {
+                var users = await _context.AdminUsers
+                    .Select(u => new { 
+                        id = u.AdminUserId, 
+                        username = u.Username, 
+                        email = u.Email 
+                    })
+                    .ToListAsync();
+                
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error in GetUsers: {ex.Message}");
+                return StatusCode(500, new { success = false, message = "An error occurred while retrieving users." });
+            }
+        }
+
+        // POST: /admin/users
+        [HttpPost("users")]
+        public async Task<IActionResult> AddUser([FromBody] AddUserRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password) || string.IsNullOrWhiteSpace(req.Email))
+                return BadRequest(new { success = false, message = "Username, password, and email are required." });
+
+            // Check if username or email already exists
+            var existingUser = await _context.AdminUsers
+                .FirstOrDefaultAsync(u => u.Username == req.Username || u.Email == req.Email);
+
+            if (existingUser != null)
+            {
+                if (existingUser.Username == req.Username)
+                    return BadRequest(new { success = false, message = "Username already exists." });
+                
+                if (existingUser.Email == req.Email)
+                    return BadRequest(new { success = false, message = "Email already exists." });
+            }
+
+            // Hash the password
+            string passwordHash = PasswordHashService.HashPassword(req.Password);
+
+            // Create new admin user
+            var newUser = new AdminUser
+            {
+                Username = req.Username,
+                PasswordHash = passwordHash,
+                Email = req.Email
+            };
+
+            _context.AdminUsers.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                success = true, 
+                message = "Admin user added successfully.",
+                id = newUser.AdminUserId,
+                username = newUser.Username,
+                email = newUser.Email
+            });
+        }
+
+        // DELETE: /admin/users/{id}
+        [HttpDelete("users/{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var user = await _context.AdminUsers.FindAsync(id);
+            if (user == null)
+                return NotFound(new { success = false, message = "User not found." });
+
+            _context.AdminUsers.Remove(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "User deleted successfully." });
+        }
+
+        public class AddUserRequest
+        {
+            public string Username { get; set; } = string.Empty;
+            public string Password { get; set; } = string.Empty;
+            public string Email { get; set; } = string.Empty;
         }
     } // end class
 }

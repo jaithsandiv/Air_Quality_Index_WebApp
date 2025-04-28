@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Configuration ---
-    const API_ENDPOINT = '/api/sensors'; // Example: Replace with your actual API or set to null for simulation
+    const API_ENDPOINT = '/admin/sensors'; // Updated to point to our actual backend API endpoint
     const SIMULATION_INTERVAL_MS = 30000; // Default simulation interval
     const ADMIN_USERNAME = 'admin'; // Added admin username constant
     const ADMIN_PASSWORD = 'password'; // !! IMPORTANT: NEVER hardcode passwords in production client-side code !! This is just for demonstration. Use a backend for real auth.
@@ -231,11 +231,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Data Handling ---
     function loadSensorData() {
+        console.log('Loading sensor data from API endpoint:', API_ENDPOINT);
+        
         if (API_ENDPOINT) {
-            // TODO: Fetch from API
-            console.warn("API fetching not implemented. Using simulation.");
-            simulateInitialSensorData();
+            fetch(API_ENDPOINT)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Received sensor data:', data);
+                    if (Array.isArray(data) && data.length > 0) {
+                        sensors = data.map(sensor => ({
+                            id: sensor.id,
+                            name: sensor.name,
+                            lat: sensor.lat,
+                            lng: sensor.lng,
+                            aqi: sensor.aqi,
+                            status: sensor.status || 'active',
+                            lastUpdated: sensor.lastUpdated
+                        }));
+                        
+                        console.log('Processed sensor data:', sensors);
+                        sensors.forEach(addSensorMarker);
+                        updateAdminSensorTable();
+                        updateSystemStatus();
+                        startSimulation();
+                    } else {
+                        console.warn('No sensors found, falling back to simulation');
+                        simulateInitialSensorData();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching sensor data:', error);
+                    simulateInitialSensorData();
+                });
         } else {
+            console.warn('No API endpoint provided, using simulation');
             simulateInitialSensorData();
         }
     }
@@ -324,56 +353,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupTabs(tabsContainer, tabContents) {
-         if (!tabsContainer) return;
-         const tabTriggers = tabsContainer.querySelectorAll('.tab-trigger');
+        if (!tabsContainer) return;
+        const tabTriggers = tabsContainer.querySelectorAll('.tab-trigger');
 
-         tabsContainer.addEventListener('click', (event) => {
-             const trigger = event.target.closest('.tab-trigger');
-             if (!trigger) return;
+        tabsContainer.addEventListener('click', (event) => {
+            const trigger = event.target.closest('.tab-trigger');
+            if (!trigger) return;
 
-             const targetTabId = trigger.dataset.tab;
+            const targetTabId = trigger.dataset.tab;
 
-             // Update triggers
-             tabTriggers.forEach(t => t.classList.remove('active'));
-             trigger.classList.add('active');
+            // Update triggers
+            tabTriggers.forEach(t => t.classList.remove('active'));
+            trigger.classList.add('active');
 
-             // Update content
-             tabContents.forEach(content => {
-                 if (content.id === targetTabId) {
-                     content.classList.add('active');
-                 } else {
-                     content.classList.remove('active');
-                 }
-             });
-         });
-     }
+            // Update content
+            tabContents.forEach(content => {
+                if (content.id === targetTabId) {
+                    content.classList.add('active');
+                    
+                    // Special handling for admin-users tab
+                    if (targetTabId === 'admin-users') {
+                        console.log('Loading users as user management tab was activated');
+                        loadAdminUsers();
+                    }
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        });
+    }
 
     // --- Admin Panel Functions ---
     function handleLogin() {
         const enteredUsername = usernameInput.value.trim();
         const enteredPassword = passwordInput.value;
-
-        if (enteredUsername === ADMIN_USERNAME && enteredPassword === ADMIN_PASSWORD) {
-            isAdminLoggedIn = true;
-            adminLoginSection.classList.add('hidden');
-            adminPanelSection.classList.remove('hidden');
-            loginError.classList.add('hidden');
-            usernameInput.value = ''; // Clear username field
-            passwordInput.value = ''; // Clear password field
-            loadAdminData(); // Load data needed for admin panel
-            console.log('Admin login successful');
-        } else {
-            isAdminLoggedIn = false;
-            loginError.textContent = 'Invalid username or password.'; // Updated error message
+        // Call backend login endpoint
+        fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: enteredUsername, password: enteredPassword })
+        })
+        .then(async response => {
+            const result = await response.json();
+            if (response.ok && result.success) {
+                isAdminLoggedIn = true;
+                adminLoginSection.classList.add('hidden');
+                adminPanelSection.classList.remove('hidden');
+                loginError.classList.add('hidden');
+                usernameInput.value = '';
+                passwordInput.value = '';                
+                loadAdminData();
+                console.log('Admin login successful');
+            } else {
+                isAdminLoggedIn = false;
+                loginError.textContent = result.message || 'Invalid username or password.';
+                loginError.classList.remove('hidden');
+                console.log('Admin login failed');
+            }
+        })
+        .catch(err => {
+            console.error('Login request error:', err);
+            loginError.textContent = 'Login failed. Please try again.';
             loginError.classList.remove('hidden');
-            console.log('Admin login failed');
-        }
+        });
     }
 
      function loadAdminData() {
          // Load data needed specifically when admin logs in
          updateAdminSensorTable();
-         updateAdminUserTable(); // Example
+         loadAdminUsers(); // Call the loadAdminUsers function directly
          updateSystemStatus();
          // Set initial values for settings forms
          simulationActiveToggle.checked = simulationActive;
@@ -392,59 +440,105 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const newSensor = {
-            // Generate a simple ID (replace with proper ID generation if using API)
-            id: sensors.length > 0 ? Math.max(...sensors.map(s => s.id)) + 1 : 1,
+        console.log(`Adding new sensor: ${name} (${lat}, ${lng}) with AQI ${aqi}`);
+
+        // Create request data
+        const sensorData = {
             name: name,
             lat: lat,
             lng: lng,
-            aqi: aqi,
-            status: 'active' // Default status
+            initialAQI: aqi
         };
 
-        sensors.push(newSensor);
-        addSensorMarker(newSensor); // Add to map
-        updateAdminSensorTable(); // Update table
-        updateSystemStatus(); // Update sensor count
+        // Send to backend API
+        fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(sensorData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+            if (data.success) {
+                // Create the new sensor object with the returned data
+                const newSensor = {
+                    id: data.id,
+                    name: data.name,
+                    lat: data.lat,
+                    lng: data.lng,
+                    aqi: data.aqi,
+                    status: 'active'
+                };
 
-        // Clear form
-        sensorNameInput.value = '';
-        sensorAqiInput.value = '50'; // Reset to default
-        sensorLatInput.value = '';
-        sensorLngInput.value = '';
+                // Add to local sensors array
+                sensors.push(newSensor);
+                addSensorMarker(newSensor); // Add to map
+                updateAdminSensorTable(); // Update table
+                updateSystemStatus(); // Update sensor count
 
-        console.log('Added new sensor:', newSensor);
+                // Clear form
+                sensorNameInput.value = '';
+                sensorAqiInput.value = '50'; // Reset to default
+                sensorLatInput.value = '';
+                sensorLngInput.value = '';
+
+                console.log('Added new sensor:', newSensor);
+            } else {
+                console.error('Failed to add sensor:', data.message);
+                alert('Failed to add sensor: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error adding sensor:', error);
+            alert('Error adding sensor. Please try again.');
+        });
     }
 
      function handleDeleteSensor(sensorId) {
-         if (!confirm(`Are you sure you want to delete sensor ID ${sensorId}?`)) {
-             return;
-         }
+         console.log(`Attempting to delete sensor ID ${sensorId}`);
 
-         const sensorIndex = sensors.findIndex(s => s.id === sensorId);
-         if (sensorIndex > -1) {
-             const sensorToRemove = sensors[sensorIndex];
+         // Call backend API to delete the sensor
+         fetch(`${API_ENDPOINT}/${sensorId}`, {
+             method: 'DELETE'
+         })
+         .then(response => response.json())
+         .then(data => {
+             console.log('Delete response:', data);
+             
+             if (data.success) {
+                 const sensorIndex = sensors.findIndex(s => s.id === sensorId);
+                 if (sensorIndex > -1) {
+                     const sensorToRemove = sensors[sensorIndex];
 
-             // Remove marker from map
-             if (sensorToRemove.marker && map) {
-                 map.removeLayer(sensorToRemove.marker);
+                     // Remove marker from map
+                     if (sensorToRemove.marker && map) {
+                         map.removeLayer(sensorToRemove.marker);
+                     }
+
+                     // Remove from sensors array
+                     sensors.splice(sensorIndex, 1);
+
+                     // If the deleted sensor was selected, clear selection
+                     if (selectedSensor && selectedSensor.id === sensorId) {
+                         clearSensorSelection();
+                     }
+
+                     // Update UI
+                     updateAdminSensorTable();
+                     updateSystemStatus();
+                     console.log(`Successfully deleted sensor ID ${sensorId}`);
+                 }
+             } else {
+                 console.error(`Failed to delete sensor ID ${sensorId}:`, data.message);
+                 alert('Failed to delete sensor: ' + data.message);
              }
-
-             // Remove from sensors array
-             sensors.splice(sensorIndex, 1);
-
-             // If the deleted sensor was selected, clear selection
-             if (selectedSensor && selectedSensor.id === sensorId) {
-                 clearSensorSelection();
-             }
-
-             // Update UI
-             updateAdminSensorTable();
-             updateSystemStatus();
-             console.log(`Deleted sensor ID ${sensorId}`);
-         } else {
-             console.error(`Sensor with ID ${sensorId} not found for deletion.`);
-         }
+         })
+         .catch(error => {
+             console.error('Error deleting sensor:', error);
+             alert('Error deleting sensor. Please try again.');
+         });
      }
 
      function handleEditSensor(sensorId) {
@@ -512,25 +606,159 @@ document.addEventListener('DOMContentLoaded', () => {
      }
 
      function handleAddUser() {
-         // TODO: Get user details from form
-         // Validate input
-         // Add user (e.g., to an array or send to API)
-         // Update user table
-         // Clear form
-         alert("Adding user - Functionality not fully implemented.");
+         const username = document.getElementById('user-username').value.trim();
+         const email = document.getElementById('user-email').value.trim();
+         const password = document.getElementById('user-password').value;
+
+         if (!username || !email || !password) {
+             alert('Please fill in all user fields.');
+             return;
+         }
+
+         if (!validateEmail(email)) {
+             alert('Please enter a valid email address.');
+             return;
+         }
+
+         console.log(`Adding new admin user: ${username} (${email})`);
+
+         // Create request data
+         const userData = {
+             username: username,
+             email: email,
+             password: password
+         };
+
+         // Send to backend API (updated to use admin controller)
+         fetch('/admin/users', {
+             method: 'POST',
+             headers: {
+                 'Content-Type': 'application/json',
+             },
+             body: JSON.stringify(userData)
+         })
+         .then(response => response.json())
+         .then(data => {
+             console.log('User registration response:', data);
+             if (data.success) {
+                 // Clear form
+                 document.getElementById('user-username').value = '';
+                 document.getElementById('user-email').value = '';
+                 document.getElementById('user-password').value = '';
+
+                 // Refresh user table
+                 loadAdminUsers();
+                 
+                 console.log('Added new admin user:', data.username);
+             } else {
+                 console.error('Failed to add user:', data.message);
+             }
+         })
+         .catch(error => {
+             console.error('Error adding user:', error);
+             alert('Error adding user. Please try again.');
+         });
      }
 
-     function updateAdminUserTable() {
-          if (!usersTableBody) return;
-         // Populate users table without status column
-         usersTableBody.innerHTML = `
-             <tr>
-                 <td>admin_user</td>
-                 <td>admin@example.com</td>
-                 <td><button class="btn btn-outline btn-sm text-red-500">Remove</button></td>
-             </tr>
-         `;
-         // Add event listeners for actions
+     function loadAdminUsers() {
+         console.log('Loading admin users from API endpoint: /admin/users');
+         
+         fetch('/admin/users')
+             .then(response => {
+                 console.log('Users response status:', response.status);
+                 if (!response.ok) {
+                     throw new Error(`HTTP error! Status: ${response.status}`);
+                 }
+                 return response.json();
+             })
+             .then(data => {
+                 console.log('Received admin users data:', data);
+                 // Log more details about the data received
+                 if (Array.isArray(data)) {
+                     console.log(`Received ${data.length} users`);
+                     data.forEach(user => {
+                         console.log(`User: ${user.username}, Email: ${user.email}, ID: ${user.id}`);
+                     });
+                 } else {
+                     console.log('Data is not an array:', typeof data);
+                 }
+                 updateAdminUserTable(data);
+             })
+             .catch(error => {
+                 console.error('Error fetching admin users:', error);
+                 // Display a fallback with an error message instead of showing an alert
+                 if (usersTableBody) {
+                     usersTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-red-500">Error loading users. Check console for details.</td></tr>';
+                 }
+             });
+     }
+
+     function handleDeleteUser(userId, username) {
+         console.log(`Attempting to delete user ID ${userId}: ${username}`);
+
+         // Call backend API to delete the user
+         fetch(`/admin/users/${userId}`, {  // Updated to use admin/users endpoint
+             method: 'DELETE'
+         })
+         .then(response => response.json())
+         .then(data => {
+             console.log('Delete user response:', data);
+             
+             if (data.success) {
+                 // Refresh user table
+                 loadAdminUsers();
+                 console.log(`Successfully deleted user ID ${userId}`);
+             } else {
+                 console.error(`Failed to delete user ID ${userId}:`, data.message);
+             }
+         })
+         .catch(error => {
+             console.error('Error deleting user:', error);
+             alert('Error deleting user. Please try again.');
+         });
+     }
+
+     function updateAdminUserTable(users) {
+         if (!usersTableBody) return;
+         
+         usersTableBody.innerHTML = '';
+         
+         if (!users || users.length === 0) {
+             const row = document.createElement('tr');
+             row.innerHTML = '<td colspan="3" class="text-center">No admin users found</td>';
+             usersTableBody.appendChild(row);
+             return;
+         }
+         
+         users.forEach(user => {
+             const row = document.createElement('tr');
+             row.innerHTML = `
+                 <td>${user.username}</td>
+                 <td>${user.email}</td>
+                 <td>
+                     <button class="btn btn-outline btn-sm text-red-500 delete-user-btn" data-id="${user.id}" data-username="${user.username}">Remove</button>
+                 </td>
+             `;
+             usersTableBody.appendChild(row);
+         });
+         
+         // Add event listeners for delete buttons
+         usersTableBody.querySelectorAll('.delete-user-btn').forEach(btn => {
+             btn.addEventListener('click', () => {
+                 const userId = parseInt(btn.dataset.id, 10);
+                 const username = btn.dataset.username;
+                 
+                 showConfirmation(
+                     `Are you sure you want to remove user "${username}"?`,
+                     () => handleDeleteUser(userId, username)
+                 );
+             });
+         });
+     }
+
+     function validateEmail(email) {
+         const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+         return re.test(String(email).toLowerCase());
      }
 
     function updateSystemStatus() {
@@ -584,8 +812,8 @@ document.addEventListener('DOMContentLoaded', () => {
         editingSensorId = sensor.id;
         editSensorNameInput.value = sensor.name;
         editSensorAqiInput.value = sensor.aqi;
-        editSensorLatInput.value = sensor.lat;
-        editSensorLngInput.value = sensor.lng;
+        editSensorLatInput.value = sensor.lat.toFixed(6); // Format with 6 decimal places
+        editSensorLngInput.value = sensor.lng.toFixed(6); // Format with 6 decimal places
         editSensorModal.showModal();
     }
     cancelEditSensorBtn.addEventListener('click', () => {
@@ -595,13 +823,66 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const sensor = sensors.find(s => s.id === editingSensorId);
         if (!sensor) return;
-        sensor.name = editSensorNameInput.value.trim();
-        sensor.aqi = parseInt(editSensorAqiInput.value, 10) || sensor.aqi;
-        sensor.lat = parseFloat(editSensorLatInput.value) || sensor.lat;
-        sensor.lng = parseFloat(editSensorLngInput.value) || sensor.lng;
-        updateSensorMarker(sensor);
-        updateAdminSensorTable();
-        editSensorModal.close();
+        
+        const name = editSensorNameInput.value.trim();
+        const aqi = parseInt(editSensorAqiInput.value, 10);
+        const lat = parseFloat(editSensorLatInput.value);
+        const lng = parseFloat(editSensorLngInput.value);
+        
+        if (!name || isNaN(aqi) || isNaN(lat) || isNaN(lng)) {
+            alert('Please fill in all fields correctly.');
+            return;
+        }
+        
+        console.log(`Updating sensor ID ${editingSensorId}: ${name} (${lat}, ${lng}) with AQI ${aqi}`);
+        
+        // Call the backend API to update the sensor
+        fetch(`${API_ENDPOINT}/${editingSensorId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                lat: lat,
+                lng: lng,
+                aqi: aqi
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Update response:', data);
+            if (data.success) {
+                // Update local data
+                sensor.name = name;
+                sensor.aqi = aqi;
+                sensor.lat = lat;
+                sensor.lng = lng;
+                
+                // Update marker on map
+                updateSensorMarker(sensor);
+                
+                // Update table
+                updateAdminSensorTable();
+                
+                // If this sensor is selected, update details panel
+                if (selectedSensor && selectedSensor.id === sensor.id) {
+                    handleSensorSelection(sensor);
+                }
+                
+                console.log(`Successfully updated sensor ID ${editingSensorId}`);
+            } else {
+                console.error(`Failed to update sensor ID ${editingSensorId}:`, data.message);
+                alert('Failed to update sensor: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating sensor:', error);
+            alert('Error updating sensor. Please try again.');
+        })
+        .finally(() => {
+            editSensorModal.close();
+        });
     });
 
     // Override sensor table button wiring to use modals
@@ -643,30 +924,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Override user table removals to use confirmation dialog
-    function updateAdminUserTable() {
+    function updateAdminUserTable(users) {
         if (!usersTableBody) return;
+         
         usersTableBody.innerHTML = '';
-        // Example static users, replace with real data as needed
-        const exampleUsers = [{ username: 'admin_user', email: 'admin@example.com' }];
-        exampleUsers.forEach(u => {
+         
+        if (!users || users.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="3" class="text-center">No admin users found</td>';
+            usersTableBody.appendChild(row);
+            return;
+        }
+         
+        users.forEach(user => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${u.username}</td>
-                <td>${u.email}</td>
-                <td><button class="btn btn-outline btn-sm text-red-500 remove-user-btn">Remove</button></td>
+                <td>${user.username}</td>
+                <td>${user.email}</td>
+                <td>
+                    <button class="btn btn-outline btn-sm text-red-500 delete-user-btn" data-id="${user.id}" data-username="${user.username}">Remove</button>
+                </td>
             `;
             usersTableBody.appendChild(row);
         });
-        usersTableBody.querySelectorAll('.remove-user-btn').forEach(btn => {
+         
+        // Add event listeners for delete buttons
+        usersTableBody.querySelectorAll('.delete-user-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const row = btn.closest('tr');
-                const username = row.children[0].textContent;
+                const userId = parseInt(btn.dataset.id, 10);
+                const username = btn.dataset.username;
+                 
                 showConfirmation(
-                    `Are you sure you want to remove user ${username}?`,
-                    () => {
-                        row.remove();
-                        console.log(`User removed: ${username}`);
-                    }
+                    `Are you sure you want to remove user "${username}"?`,
+                    () => handleDeleteUser(userId, username)
                 );
             });
         });
@@ -735,8 +1025,24 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabs(mainTabsContainer, mainTabContents);
     setupTabs(adminTabsContainer, adminTabContents);
 
+    // Event listeners for logout
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            fetch('/auth/logout', { method: 'POST' })
+                .then(() => {
+                    isAdminLoggedIn = false;
+                    adminPanelSection.classList.add('hidden');
+                    adminLoginSection.classList.remove('hidden');
+                    clearSensorSelection();
+                    console.log('Admin logged out');
+                })
+                .catch(err => console.error('Logout failed:', err));
+        });
+    }
 
     // --- Initialization ---
+    console.log('Initializing Air Quality Dashboard');
     initializeMap();
     initializeChart();
     // Initial UI state

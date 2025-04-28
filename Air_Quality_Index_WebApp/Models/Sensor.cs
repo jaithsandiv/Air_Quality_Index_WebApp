@@ -14,10 +14,10 @@ namespace Air_Quality_Index_WebApp.Models
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public int LocationId { get; set; }
+        public double Latitude { get; set; }
 
-        [ForeignKey("LocationId")]
-        public Location? Location { get; set; }
+        [Required]
+        public double Longitude { get; set; }
 
         [Required]
         [StringLength(20)]

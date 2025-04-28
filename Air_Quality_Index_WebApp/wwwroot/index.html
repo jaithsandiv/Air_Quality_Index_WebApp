@@ -617,13 +617,19 @@
                     </div>
 
                     <div id="admin-panel" class="hidden space-y-6">
+
                         <!-- Admin Tabs -->
                         <div class="tabs admin-tabs"> <!-- Added admin-tabs class -->
-                            <div class="tabs-list">
+                            <div class="tabs-list flex justify-between">
+                                <div>
                                 <button class="tab-trigger active" data-tab="admin-sensors">Sensor Management</button>
                                 <button class="tab-trigger" data-tab="admin-simulation">Simulation Settings</button>
                                 <button class="tab-trigger" data-tab="admin-users">User Management</button>
                                 <button class="tab-trigger" data-tab="admin-system">System Status</button>
+                                </div>
+                                <div class="flex justify-end mb-2">
+                                    <button id="logout-btn" class="btn btn-outline">Logout</button>
+                                </div>
                             </div>
 
                             <!-- Admin Sensor Management Tab Content -->
@@ -857,11 +863,11 @@
     </div>
     <div class="form-group">
       <label for="edit-sensor-lat">Latitude</label>
-      <input id="edit-sensor-lat" type="number" class="w-full p-2 border rounded">
+      <input id="edit-sensor-lat" type="text" class="w-full p-2 border rounded" step="0.0001" placeholder="e.g., 6.9271">
     </div>
     <div class="form-group">
       <label for="edit-sensor-lng">Longitude</label>
-      <input id="edit-sensor-lng" type="number" class="w-full p-2 border rounded">
+      <input id="edit-sensor-lng" type="text" class="w-full p-2 border rounded" step="0.0001" placeholder="e.g., 79.8612">
     </div>
     <div class="flex justify-end gap-2">
       <button type="button" id="cancel-edit-sensor" class="btn btn-outline">Cancel</button>
