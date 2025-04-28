@@ -17,11 +17,13 @@ namespace Air_Quality_Index_WebApp.Controllers
     {
         private readonly AirQualityContext _context;
         private readonly WaqiService _waqiService;
+        private readonly SimulationServiceAccessor _simulationServiceAccessor;
 
-        public AdminController(AirQualityContext context, WaqiService waqiService)
+        public AdminController(AirQualityContext context, WaqiService waqiService, SimulationServiceAccessor simulationServiceAccessor)
         {
             _context = context;
             _waqiService = waqiService;
+            _simulationServiceAccessor = simulationServiceAccessor;
         }
 
         // GET: /admin/fetch-waqi?city=beijing
@@ -318,6 +320,148 @@ namespace Air_Quality_Index_WebApp.Controllers
             public string Username { get; set; } = string.Empty;
             public string Password { get; set; } = string.Empty;
             public string Email { get; set; } = string.Empty;
+        }
+
+        // --- SIMULATION MANAGEMENT API ENDPOINTS ---
+
+        // GET: /admin/simulation
+        [HttpGet("simulation")]
+        public async Task<IActionResult> GetSimulationSettings()
+        {
+            var settings = await _context.SimulationSettings.FirstOrDefaultAsync();
+            if (settings == null)
+            {
+                settings = new SimulationSettings { SimulationSettingsId = 1, Enabled = true, IntervalSeconds = 30 };
+                _context.SimulationSettings.Add(settings);
+                await _context.SaveChangesAsync();
+            }
+            
+            return Ok(new { 
+                enabled = settings.Enabled, 
+                intervalSeconds = settings.IntervalSeconds 
+            });
+        }
+
+        // PUT: /admin/simulation
+        [HttpPut("simulation")]
+        public async Task<IActionResult> UpdateSimulationSettings([FromBody] UpdateSimulationRequest req)
+        {
+            var settings = await _context.SimulationSettings.FirstOrDefaultAsync();
+            if (settings == null)
+            {
+                settings = new SimulationSettings { SimulationSettingsId = 1 };
+                _context.SimulationSettings.Add(settings);
+            }
+            
+            settings.Enabled = req.Enabled;
+            
+            if (req.IntervalSeconds < 5 || req.IntervalSeconds > 300)
+            {
+                return BadRequest(new { success = false, message = "Interval must be between 5 and 300 seconds." });
+            }
+            
+            settings.IntervalSeconds = req.IntervalSeconds;
+            
+            await _context.SaveChangesAsync();
+            
+            // Update the simulation service using the accessor
+            var simulationService = _simulationServiceAccessor.GetSimulationService();
+            if (simulationService != null)
+            {
+                await simulationService.UpdateSimulationTimer();
+            }
+            
+            return Ok(new { 
+                success = true, 
+                message = "Simulation settings updated successfully.",
+                enabled = settings.Enabled,
+                intervalSeconds = settings.IntervalSeconds
+            });
+        }
+
+        // GET: /admin/simulation/diagnostics
+        [HttpGet("simulation/diagnostics")]
+        public IActionResult GetSimulationDiagnostics()
+        {
+            try
+            {
+                var simulationService = _simulationServiceAccessor.GetSimulationService();
+                if (simulationService == null)
+                {
+                    return StatusCode(500, new { error = "Simulation service not found" });
+                }
+                
+                var currentSettings = simulationService.GetCurrentSettings();
+                
+                return Ok(new {
+                    serverTime = DateTime.UtcNow,
+                    settings = new {
+                        id = currentSettings.SimulationSettingsId,
+                        enabled = currentSettings.Enabled,
+                        intervalSeconds = currentSettings.IntervalSeconds
+                    },
+                    isRunning = simulationService.IsRunning(),
+                    diagnosticInfo = "This endpoint helps diagnose simulation issues"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    error = "Error retrieving simulation diagnostics", 
+                    message = ex.Message 
+                });
+            }
+        }
+
+        // GET: /admin/system-status
+        [HttpGet("system-status")]
+        public async Task<IActionResult> GetSystemStatus()
+        {
+            var activeSensorsCount = await _context.Sensors.CountAsync(s => s.Status == "Active");
+            
+            // Get simulation status from service
+            var simulationService = _simulationServiceAccessor.GetSimulationService();
+            bool simulationRunning = false;
+            
+            if (simulationService != null)
+            {
+                var settings = simulationService.GetCurrentSettings();
+                simulationRunning = settings.Enabled;
+            }
+            else
+            {
+                // Fallback to database if service is not available
+                var settings = await _context.SimulationSettings.FirstOrDefaultAsync();
+                simulationRunning = settings?.Enabled ?? false;
+            }
+            
+            // Get data points generated today
+            int dataPointsToday = 0;
+            if (simulationService != null)
+            {
+                dataPointsToday = await simulationService.GetDataPointsGeneratedToday();
+            }
+            else
+            {
+                // Manual calculation if service is not available
+                var today = DateTime.UtcNow.Date;
+                var tomorrow = today.AddDays(1);
+                dataPointsToday = await _context.SensorData
+                    .Where(sd => sd.Timestamp >= today && sd.Timestamp < tomorrow)
+                    .CountAsync();
+            }
+            
+            return Ok(new { 
+                activeSensorsCount = activeSensorsCount,
+                simulationRunning = simulationRunning,
+                dataPointsToday = dataPointsToday
+            });
+        }
+
+        public class UpdateSimulationRequest
+        {
+            public bool Enabled { get; set; }
+            public int IntervalSeconds { get; set; }
         }
     } // end class
 }

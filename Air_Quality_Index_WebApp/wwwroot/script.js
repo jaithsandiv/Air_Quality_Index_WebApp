@@ -249,11 +249,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             lastUpdated: sensor.lastUpdated
                         }));
                         
+                        // Clear existing markers from map if any
+                        sensors.forEach(sensor => {
+                            if (sensor.marker && map) {
+                                map.removeLayer(sensor.marker);
+                                sensor.marker = null;
+                            }
+                        });
+                        
                         console.log('Processed sensor data:', sensors);
                         sensors.forEach(addSensorMarker);
                         updateAdminSensorTable();
                         updateSystemStatus();
-                        startSimulation();
+                        
+                        // Set up refresh timer to periodically reload data
+                        setupSensorDataRefresh();
                     } else {
                         console.warn('No sensors found, falling back to simulation');
                         simulateInitialSensorData();
@@ -267,6 +277,51 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('No API endpoint provided, using simulation');
             simulateInitialSensorData();
         }
+    }
+
+    function setupSensorDataRefresh() {
+        // Refresh sensor data every 15 seconds to show simulation results
+        if (simulationIntervalId) {
+            clearInterval(simulationIntervalId);
+        }
+        
+        const refreshInterval = 15000; // 15 seconds
+        simulationIntervalId = setInterval(() => {
+            console.log('Refreshing sensor data from API');
+            fetch(API_ENDPOINT)
+                .then(response => response.json())
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        // Update AQI values and marker colors
+                        data.forEach(apiSensor => {
+                            const sensor = sensors.find(s => s.id === apiSensor.id);
+                            if (sensor) {
+                                sensor.aqi = apiSensor.aqi;
+                                sensor.status = apiSensor.status;
+                                sensor.lastUpdated = apiSensor.lastUpdated;
+                                updateSensorMarker(sensor);
+                            }
+                        });
+                        
+                        // Update UI components
+                        updateAdminSensorTable();
+                        updateSystemStatus();
+                        
+                        // If a sensor is selected, update its chart
+                        if (selectedSensor) {
+                            const updatedSensor = data.find(s => s.id === selectedSensor.id);
+                            if (updatedSensor) {
+                                selectedSensor.aqi = updatedSensor.aqi;
+                                updateAqiIndicator(selectedSensor.aqi);
+                                updateChart(selectedSensor.id, timeRangeSelect.value);
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing sensor data:', error);
+                });
+        }, refreshInterval);
     }
 
     function simulateInitialSensorData() {
@@ -423,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
          updateAdminSensorTable();
          loadAdminUsers(); // Call the loadAdminUsers function directly
          updateSystemStatus();
+         loadSimulationSettings();
          // Set initial values for settings forms
          simulationActiveToggle.checked = simulationActive;
          simulationIntervalInput.value = (simulationIntervalId ? (parseInt(simulationIntervalInput.value, 10)) : (SIMULATION_INTERVAL_MS / 1000)); // Show current interval
@@ -588,14 +644,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
          if (isNaN(newIntervalSeconds) || newIntervalSeconds < 5 || newIntervalSeconds > 300) {
              alert("Invalid simulation interval. Please enter a value between 5 and 300 seconds.");
-             // Optionally reset input to previous valid value
-             simulationIntervalInput.value = (simulationIntervalId ? (parseInt(simulationIntervalInput.value, 10)) : (SIMULATION_INTERVAL_MS / 1000));
+             // Reset input to previous valid value
+             loadSimulationSettings();
              return;
          }
 
-         // Restart simulation with new settings
-         startSimulation();
-         alert("Simulation settings saved.");
+         console.log(`Saving simulation settings: enabled=${simulationActive}, interval=${newIntervalSeconds}s`);
+
+         // Send settings to backend API
+         fetch('/admin/simulation', {
+             method: 'PUT',
+             headers: {
+                 'Content-Type': 'application/json',
+             },
+             body: JSON.stringify({
+                 enabled: simulationActive,
+                 intervalSeconds: newIntervalSeconds
+             })
+         })
+         .then(response => response.json())
+         .then(data => {
+             console.log('Simulation settings response:', data);
+             if (data.success) {
+                 // Update UI with confirmed settings
+                 simulationActive = data.enabled;
+                 simulationActiveToggle.checked = data.enabled;
+                 simulationIntervalInput.value = data.intervalSeconds;
+                 
+                 // Check diagnostics after saving
+                 setTimeout(checkSimulationDiagnostics, 1000);
+                 
+                 // Reload sensor data to reflect changes
+                 loadSensorData();
+                 
+                 alert("Simulation settings saved successfully.");
+             } else {
+                 console.error('Failed to save simulation settings:', data.message);
+                 alert('Failed to save simulation settings: ' + data.message);
+                 loadSimulationSettings(); // Reload current settings from backend
+             }
+         })
+         .catch(error => {
+             console.error('Error saving simulation settings:', error);
+             alert('Error saving simulation settings. Please try again.');
+         });
      }
 
      function handleSaveThresholds() {
@@ -762,18 +854,45 @@ document.addEventListener('DOMContentLoaded', () => {
      }
 
     function updateSystemStatus() {
-        if (activeSensorsCountEl) {
-            activeSensorsCountEl.textContent = sensors.length;
-        }
-        if (simulationStatusEl) {
-             simulationStatusEl.textContent = simulationActive && simulationIntervalId ? 'Running' : 'Stopped';
-             simulationStatusEl.style.color = simulationActive && simulationIntervalId ? '#065f46' : '#991b1b'; // Green or Red
-        }
-        if (dataPointsTodayEl) {
-            // TODO: Implement logic to track data points generated/fetched today
-            // For now, just showing a placeholder
-            dataPointsTodayEl.textContent = Math.floor(Math.random() * 1000); // Placeholder
-        }
+        // Fetch system status from backend API
+        fetch('/admin/system-status')
+            .then(response => response.json())
+            .then(data => {
+                console.log('System status data:', data);
+                
+                if (activeSensorsCountEl) {
+                    activeSensorsCountEl.textContent = data.activeSensorsCount;
+                }
+                
+                if (simulationStatusEl) {
+                    simulationStatusEl.textContent = data.simulationRunning ? 'Running' : 'Stopped';
+                    simulationStatusEl.style.color = data.simulationRunning ? '#065f46' : '#991b1b'; // Green or Red
+                    
+                    // Update local state to match backend
+                    simulationActive = data.simulationRunning;
+                }
+                
+                if (dataPointsTodayEl) {
+                    dataPointsTodayEl.textContent = data.dataPointsToday;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching system status:', error);
+                
+                // Fallback to locally calculated values if API fails
+                if (activeSensorsCountEl) {
+                    activeSensorsCountEl.textContent = sensors.length;
+                }
+                
+                if (simulationStatusEl) {
+                    simulationStatusEl.textContent = simulationActive ? 'Running' : 'Stopped';
+                    simulationStatusEl.style.color = simulationActive ? '#065f46' : '#991b1b';
+                }
+                
+                if (dataPointsTodayEl) {
+                    dataPointsTodayEl.textContent = 'N/A'; // Show N/A when API fails
+                }
+            });
     }
 
     // Modal and confirmation dialog logic
@@ -960,6 +1079,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             });
         });
+    }
+
+    function loadSimulationSettings() {
+        console.log('Loading simulation settings from backend');
+        
+        fetch('/admin/simulation')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Received simulation settings:', data);
+                
+                // Update UI with current settings
+                simulationActive = data.enabled;
+                simulationActiveToggle.checked = data.enabled;
+                simulationIntervalInput.value = data.intervalSeconds;
+                
+                // Update status display
+                updateSystemStatus();
+            })
+            .catch(error => {
+                console.error('Error loading simulation settings:', error);
+            });
+    }
+
+    function checkSimulationDiagnostics() {
+        console.log('Checking simulation diagnostics...');
+        
+        fetch('/admin/simulation/diagnostics')
+            .then(response => response.json())
+            .then(data => {
+                console.log('%c Simulation Diagnostics:', 'background: #222; color: #bada55; font-size: 14px; font-weight: bold;');
+                console.log('Server time:', new Date(data.serverTime).toLocaleString());
+                console.log('Settings ID:', data.settings.id);
+                console.log('Enabled:', data.settings.enabled);
+                console.log('Interval (seconds):', data.settings.intervalSeconds);
+                console.log('Local simulationActive:', simulationActive);
+                console.log('UI toggle checked:', simulationActiveToggle.checked);
+                console.log('UI interval value:', simulationIntervalInput.value);
+                console.log('Current clientside interval ID:', simulationIntervalId);
+            })
+            .catch(error => {
+                console.error('Error fetching simulation diagnostics:', error);
+            });
     }
 
     // --- Event Listeners ---
