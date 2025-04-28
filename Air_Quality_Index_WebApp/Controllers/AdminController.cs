@@ -463,5 +463,96 @@ namespace Air_Quality_Index_WebApp.Controllers
             public bool Enabled { get; set; }
             public int IntervalSeconds { get; set; }
         }
+
+        // --- ALERT THRESHOLD API ENDPOINTS ---
+
+        // GET: /admin/thresholds
+        [HttpGet("thresholds")]
+        public async Task<IActionResult> GetThresholds()
+        {
+            var thresholds = await _context.AlertThresholds.FirstOrDefaultAsync();
+            if (thresholds == null)
+            {
+                // Create default thresholds if they don't exist
+                thresholds = new AlertThreshold
+                {
+                    ModerateThreshold = 51,
+                    UnhealthySensitiveThreshold = 101,
+                    UnhealthyThreshold = 151,
+                    VeryUnhealthyThreshold = 201,
+                    HazardousThreshold = 301,
+                    LastUpdated = DateTime.UtcNow
+                };
+                _context.AlertThresholds.Add(thresholds);
+                await _context.SaveChangesAsync();
+            }
+            
+            return Ok(new {
+                moderateThreshold = thresholds.ModerateThreshold,
+                unhealthySensitiveThreshold = thresholds.UnhealthySensitiveThreshold,
+                unhealthyThreshold = thresholds.UnhealthyThreshold,
+                veryUnhealthyThreshold = thresholds.VeryUnhealthyThreshold,
+                hazardousThreshold = thresholds.HazardousThreshold,
+                lastUpdated = thresholds.LastUpdated
+            });
+        }
+
+        // PUT: /admin/thresholds
+        [HttpPut("thresholds")]
+        public async Task<IActionResult> UpdateThresholds([FromBody] UpdateThresholdsRequest req)
+        {
+            // Validate thresholds
+            if (req.ModerateThreshold <= 0)
+                return BadRequest(new { success = false, message = "Moderate threshold must be greater than 0." });
+            
+            if (req.UnhealthySensitiveThreshold <= req.ModerateThreshold)
+                return BadRequest(new { success = false, message = "Unhealthy for Sensitive Groups threshold must be greater than Moderate threshold." });
+            
+            if (req.UnhealthyThreshold <= req.UnhealthySensitiveThreshold)
+                return BadRequest(new { success = false, message = "Unhealthy threshold must be greater than Unhealthy for Sensitive Groups threshold." });
+            
+            if (req.VeryUnhealthyThreshold <= req.UnhealthyThreshold)
+                return BadRequest(new { success = false, message = "Very Unhealthy threshold must be greater than Unhealthy threshold." });
+            
+            if (req.HazardousThreshold <= req.VeryUnhealthyThreshold)
+                return BadRequest(new { success = false, message = "Hazardous threshold must be greater than Very Unhealthy threshold." });
+            
+            var thresholds = await _context.AlertThresholds.FirstOrDefaultAsync();
+            if (thresholds == null)
+            {
+                thresholds = new AlertThreshold();
+                _context.AlertThresholds.Add(thresholds);
+            }
+            
+            // Update threshold values
+            thresholds.ModerateThreshold = req.ModerateThreshold;
+            thresholds.UnhealthySensitiveThreshold = req.UnhealthySensitiveThreshold;
+            thresholds.UnhealthyThreshold = req.UnhealthyThreshold;
+            thresholds.VeryUnhealthyThreshold = req.VeryUnhealthyThreshold;
+            thresholds.HazardousThreshold = req.HazardousThreshold;
+            thresholds.LastUpdated = DateTime.UtcNow;
+            
+            await _context.SaveChangesAsync();
+            
+            return Ok(new {
+                success = true,
+                message = "Alert thresholds updated successfully.",
+                moderateThreshold = thresholds.ModerateThreshold,
+                unhealthySensitiveThreshold = thresholds.UnhealthySensitiveThreshold,
+                unhealthyThreshold = thresholds.UnhealthyThreshold,
+                veryUnhealthyThreshold = thresholds.VeryUnhealthyThreshold,
+                hazardousThreshold = thresholds.HazardousThreshold,
+                lastUpdated = thresholds.LastUpdated
+            });
+        }
+
+        public class UpdateThresholdsRequest
+        {
+            public int ModerateThreshold { get; set; } = 51;
+            public int UnhealthySensitiveThreshold { get; set; } = 101;
+            public int UnhealthyThreshold { get; set; } = 151;
+            public int VeryUnhealthyThreshold { get; set; } = 201;
+            public int HazardousThreshold { get; set; } = 301;
+        }
     } // end class
 }

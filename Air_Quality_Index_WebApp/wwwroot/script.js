@@ -15,6 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let simulationIntervalId = null;
     let simulationActive = true; // Initial state from HTML checkbox
     let isAdminLoggedIn = false;
+    // Add thresholds state variable
+    let aqiThresholds = {
+        moderateThreshold: 51,
+        unhealthySensitiveThreshold: 101,
+        unhealthyThreshold: 151,
+        veryUnhealthyThreshold: 201,
+        hazardousThreshold: 301
+    };
 
     // --- DOM Element References ---
     const mapContainer = document.getElementById('map');
@@ -72,13 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- AQI Helper Functions ---
     function getAqiInfo(aqi) {
-        // These thresholds should match the legend and potentially be configurable (from admin panel)
-        // Example: const thresholds = getThresholdsFromAdmin();
-        if (aqi <= 50) return { category: "Good", color: "#4ade80", className: "good" };
-        if (aqi <= 100) return { category: "Moderate", color: "#facc15", className: "moderate" };
-        if (aqi <= 150) return { category: "Unhealthy for Sensitive Groups", color: "#f97316", className: "usg" };
-        if (aqi <= 200) return { category: "Unhealthy", color: "#ef4444", className: "unhealthy" };
-        if (aqi <= 300) return { category: "Very Unhealthy", color: "#a855f7", className: "very-unhealthy" };
+        // Use dynamic thresholds from our aqiThresholds object
+        if (aqi < aqiThresholds.moderateThreshold) return { category: "Good", color: "#4ade80", className: "good" };
+        if (aqi < aqiThresholds.unhealthySensitiveThreshold) return { category: "Moderate", color: "#facc15", className: "moderate" };
+        if (aqi < aqiThresholds.unhealthyThreshold) return { category: "Unhealthy for Sensitive Groups", color: "#f97316", className: "usg" };
+        if (aqi < aqiThresholds.veryUnhealthyThreshold) return { category: "Unhealthy", color: "#ef4444", className: "unhealthy" };
+        if (aqi < aqiThresholds.hazardousThreshold) return { category: "Very Unhealthy", color: "#a855f7", className: "very-unhealthy" };
         return { category: "Hazardous", color: "#7f1d1d", className: "hazardous" };
     }
 
@@ -87,6 +94,59 @@ document.addEventListener('DOMContentLoaded', () => {
         aqiIndicator.style.backgroundColor = info.color;
         aqiValue.textContent = aqi ?? 'N/A';
         aqiCategory.textContent = info.category;
+    }
+
+    // --- AQI Legend Update Function ---
+    function updateAqiLegend() {
+        const legendContainer = document.querySelector('.aqi-legend');
+        if (!legendContainer) return;
+        
+        // Clear existing legend items
+        legendContainer.innerHTML = '';
+        
+        // Create and add the new legend items based on current thresholds
+        // Good
+        const goodItem = createLegendItem('#4ade80', 'Good', `0-${aqiThresholds.moderateThreshold - 1}`);
+        legendContainer.appendChild(goodItem);
+        
+        // Moderate
+        const moderateItem = createLegendItem('#facc15', 'Moderate', 
+            `${aqiThresholds.moderateThreshold}-${aqiThresholds.unhealthySensitiveThreshold - 1}`);
+        legendContainer.appendChild(moderateItem);
+        
+        // Unhealthy for Sensitive Groups
+        const usgItem = createLegendItem('#f97316', 'Unhealthy for Sensitive Groups', 
+            `${aqiThresholds.unhealthySensitiveThreshold}-${aqiThresholds.unhealthyThreshold - 1}`);
+        legendContainer.appendChild(usgItem);
+        
+        // Unhealthy
+        const unhealthyItem = createLegendItem('#ef4444', 'Unhealthy', 
+            `${aqiThresholds.unhealthyThreshold}-${aqiThresholds.veryUnhealthyThreshold - 1}`);
+        legendContainer.appendChild(unhealthyItem);
+        
+        // Very Unhealthy
+        const veryUnhealthyItem = createLegendItem('#a855f7', 'Very Unhealthy', 
+            `${aqiThresholds.veryUnhealthyThreshold}-${aqiThresholds.hazardousThreshold - 1}`);
+        legendContainer.appendChild(veryUnhealthyItem);
+        
+        // Hazardous
+        const hazardousItem = createLegendItem('#7f1d1d', 'Hazardous', 
+            `${aqiThresholds.hazardousThreshold}+`);
+        legendContainer.appendChild(hazardousItem);
+        
+        console.log('AQI legend updated with custom thresholds');
+    }
+
+    // Helper function to create a legend item
+    function createLegendItem(color, category, range) {
+        const item = document.createElement('div');
+        item.className = 'aqi-category';
+        item.innerHTML = `
+            <div class="aqi-color" style="background-color: ${color};"></div>
+            <p>${category}</p>
+            <p>${range}</p>
+        `;
+        return item;
     }
 
     // --- Map Functions (Leaflet) ---
@@ -488,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
          simulationActiveToggle.checked = simulationActive;
          simulationIntervalInput.value = (simulationIntervalId ? (parseInt(simulationIntervalInput.value, 10)) : (SIMULATION_INTERVAL_MS / 1000)); // Show current interval
          // Load thresholds, etc.
+         loadThresholds();
      }
 
     function handleAddSensor() {
@@ -696,10 +757,68 @@ document.addEventListener('DOMContentLoaded', () => {
      }
 
      function handleSaveThresholds() {
-         // TODO: Get threshold values from inputs
-         // Store them (e.g., in variables or local storage)
-         // Update getAqiInfo function potentially if it uses these variables
-         alert("Saving thresholds - Functionality not fully implemented.");
+         const moderateThreshold = parseInt(document.getElementById('moderate-threshold').value, 10);
+         const unhealthySensitiveThreshold = parseInt(document.getElementById('unhealthy-sensitive-threshold').value, 10);
+         const unhealthyThreshold = parseInt(document.getElementById('unhealthy-threshold').value, 10);
+         const veryUnhealthyThreshold = parseInt(document.getElementById('very-unhealthy-threshold').value, 10);
+         const hazardousThreshold = parseInt(document.getElementById('hazardous-threshold').value, 10);
+
+         if (isNaN(moderateThreshold) || isNaN(unhealthySensitiveThreshold) || isNaN(unhealthyThreshold) || isNaN(veryUnhealthyThreshold) || isNaN(hazardousThreshold)) {
+             alert("Invalid threshold values. Please enter valid numbers.");
+             return;
+         }
+
+         console.log(`Saving thresholds: moderate=${moderateThreshold}, unhealthySensitive=${unhealthySensitiveThreshold}, unhealthy=${unhealthyThreshold}, veryUnhealthy=${veryUnhealthyThreshold}, hazardous=${hazardousThreshold}`);
+
+         // Send thresholds to backend API
+         fetch('/admin/thresholds', {
+             method: 'PUT',
+             headers: {
+                 'Content-Type': 'application/json',
+             },
+             body: JSON.stringify({
+                 moderateThreshold: moderateThreshold,
+                 unhealthySensitiveThreshold: unhealthySensitiveThreshold,
+                 unhealthyThreshold: unhealthyThreshold,
+                 veryUnhealthyThreshold: veryUnhealthyThreshold,
+                 hazardousThreshold: hazardousThreshold
+             })
+         })
+         .then(response => response.json())
+         .then(data => {
+             console.log('Thresholds response:', data);
+             if (data.success) {
+                 // Update local state with confirmed thresholds
+                 aqiThresholds = {
+                     moderateThreshold: data.moderateThreshold,
+                     unhealthySensitiveThreshold: data.unhealthySensitiveThreshold,
+                     unhealthyThreshold: data.unhealthyThreshold,
+                     veryUnhealthyThreshold: data.veryUnhealthyThreshold,
+                     hazardousThreshold: data.hazardousThreshold
+                 };
+                 
+                 // Update the AQI legend with the new thresholds
+                 updateAqiLegend();
+                 
+                 // Update any selected sensor's AQI category display
+                 if (selectedSensor) {
+                     updateAqiIndicator(selectedSensor.aqi);
+                 }
+                 
+                 // Update sensor table to reflect new threshold categories
+                 updateAdminSensorTable();
+                 
+                 alert("Thresholds saved successfully.");
+             } else {
+                 console.error('Failed to save thresholds:', data.message);
+                 alert('Failed to save thresholds: ' + data.message);
+                 loadThresholds(); // Reload current thresholds from backend
+             }
+         })
+         .catch(error => {
+             console.error('Error saving thresholds:', error);
+             alert('Error saving thresholds. Please try again.');
+         });
      }
 
      function handleAddUser() {
@@ -1125,6 +1244,38 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error fetching simulation diagnostics:', error);
+            });
+    }
+
+    function loadThresholds() {
+        console.log('Loading thresholds from backend');
+        
+        fetch('/admin/thresholds')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Received thresholds:', data);
+                
+                // Update local state with current thresholds
+                aqiThresholds = {
+                    moderateThreshold: data.moderateThreshold,
+                    unhealthySensitiveThreshold: data.unhealthySensitiveThreshold,
+                    unhealthyThreshold: data.unhealthyThreshold,
+                    veryUnhealthyThreshold: data.veryUnhealthyThreshold,
+                    hazardousThreshold: data.hazardousThreshold
+                };
+                
+                // Update UI with current thresholds
+                document.getElementById('moderate-threshold').value = data.moderateThreshold;
+                document.getElementById('unhealthy-sensitive-threshold').value = data.unhealthySensitiveThreshold;
+                document.getElementById('unhealthy-threshold').value = data.unhealthyThreshold;
+                document.getElementById('very-unhealthy-threshold').value = data.veryUnhealthyThreshold;
+                document.getElementById('hazardous-threshold').value = data.hazardousThreshold;
+                
+                // Update the AQI legend with the loaded thresholds
+                updateAqiLegend();
+            })
+            .catch(error => {
+                console.error('Error loading thresholds:', error);
             });
     }
 

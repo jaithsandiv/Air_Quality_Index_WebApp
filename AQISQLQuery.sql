@@ -25,3 +25,13 @@ CREATE TABLE SimulationSettings (
     Enabled BIT NOT NULL DEFAULT 1,
     IntervalSeconds INT NOT NULL DEFAULT 30
 );
+
+CREATE TABLE AlertThreshold (
+    AlertThresholdId INT IDENTITY PRIMARY KEY,
+    ModerateThreshold INT NOT NULL DEFAULT 51,
+    UnhealthySensitiveThreshold INT NOT NULL DEFAULT 101,
+    UnhealthyThreshold INT NOT NULL DEFAULT 151,
+    VeryUnhealthyThreshold INT NOT NULL DEFAULT 201,
+    HazardousThreshold INT NOT NULL DEFAULT 301,
+    LastUpdated DATETIME NOT NULL DEFAULT GETUTCDATE()
+);
