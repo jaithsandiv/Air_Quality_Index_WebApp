@@ -97,5 +97,87 @@ namespace Air_Quality_Index_WebApp.Controllers
             public string Username { get; set; }
             public string Password { get; set; }
         }
-    }
+
+        // --- SENSOR MANAGEMENT API ENDPOINTS ---
+
+        // GET: /admin/sensors
+        [HttpGet("sensors")]
+        public async Task<IActionResult> GetSensors()
+        {
+            var sensors = await _context.Sensors.Include(s => s.Location).ToListAsync();
+            var result = sensors.Select(s => new {
+                id = s.SensorId,
+                name = s.Name,
+                status = s.Status,
+                lat = s.Location?.Latitude,
+                lng = s.Location?.Longitude,
+                locationId = s.LocationId,
+                locationName = s.Location?.Name
+            });
+            return Ok(result);
+        }
+
+        // POST: /admin/sensors
+        [HttpPost("sensors")]
+        public async Task<IActionResult> AddSensor([FromBody] AddSensorRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Name))
+                return BadRequest(new { success = false, message = "Sensor name is required." });
+
+            // Find or create location
+            var location = await _context.Locations.FirstOrDefaultAsync(l => l.Latitude == req.Lat && l.Longitude == req.Lng);
+            if (location == null)
+            {
+                location = new Location { Name = req.Name + " Location", Latitude = req.Lat, Longitude = req.Lng };
+                _context.Locations.Add(location);
+                await _context.SaveChangesAsync();
+            }
+
+            var sensor = new Sensor
+            {
+                Name = req.Name,
+                Status = "Active",
+                LocationId = location.LocationId
+            };
+            _context.Sensors.Add(sensor);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Sensor added.", id = sensor.SensorId });
+        }
+
+        public class AddSensorRequest
+        {
+            public string Name { get; set; }
+            public double Lat { get; set; }
+            public double Lng { get; set; }
+        }
+
+        // PUT: /admin/sensors/{id}/status
+        [HttpPut("sensors/{id}/status")]
+        public async Task<IActionResult> UpdateSensorStatus(int id, [FromBody] UpdateSensorStatusRequest req)
+        {
+            var sensor = await _context.Sensors.FindAsync(id);
+            if (sensor == null)
+                return NotFound(new { success = false, message = "Sensor not found." });
+            sensor.Status = req.Status;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Sensor status updated." });
+        }
+
+        public class UpdateSensorStatusRequest
+        {
+            public string Status { get; set; }
+        }
+
+        // DELETE: /admin/sensors/{id}
+        [HttpDelete("sensors/{id}")]
+        public async Task<IActionResult> DeleteSensor(int id)
+        {
+            var sensor = await _context.Sensors.FindAsync(id);
+            if (sensor == null)
+                return NotFound(new { success = false, message = "Sensor not found." });
+            _context.Sensors.Remove(sensor);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Sensor deleted." });
+        }
+    } // end class
 }
