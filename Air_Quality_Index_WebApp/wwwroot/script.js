@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const lng = parseFloat(sensorLngInput.value);
 
         if (!name || isNaN(aqi) || isNaN(lat) || isNaN(lng)) {
-            alert('Please fill in all sensor fields correctly.');
+            console.log('Please fill in all sensor fields correctly.');
             return;
         }
 
@@ -609,12 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Added new sensor:', newSensor);
             } else {
                 console.error('Failed to add sensor:', data.message);
-                alert('Failed to add sensor: ' + data.message);
+                console.log('Failed to add sensor: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error adding sensor:', error);
-            alert('Error adding sensor. Please try again.');
+            console.log('Error adding sensor. Please try again.');
         });
     }
 
@@ -654,12 +654,12 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
              } else {
                  console.error(`Failed to delete sensor ID ${sensorId}:`, data.message);
-                 alert('Failed to delete sensor: ' + data.message);
+                 console.log('Failed to delete sensor: ' + data.message);
              }
          })
          .catch(error => {
              console.error('Error deleting sensor:', error);
-             alert('Error deleting sensor. Please try again.');
+             console.log('Error deleting sensor. Please try again.');
          });
      }
 
@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
          // 3. Handle form submission to update sensor data in the `sensors` array
          // 4. Update the marker (updateSensorMarker)
          // 5. Update the admin table (updateAdminSensorTable)
-         alert(`Editing sensor ID ${sensorId} - Functionality not fully implemented.`);
+         console.log(`Editing sensor ID ${sensorId} - Functionality not fully implemented.`);
      }
 
 
